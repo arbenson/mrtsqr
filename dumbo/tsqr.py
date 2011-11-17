@@ -11,6 +11,7 @@ import sys
 import os
 import time
 import random
+import struct
 
 import numpy
 import numpy.linalg
@@ -38,7 +39,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.data = []
         self.ncols = None
         self.use_tb_vec = False
-        if ncols:
+        if ncols is not None:
             self.ncols = ncols
             self.use_tb_vec = True
 
