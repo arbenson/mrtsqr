@@ -126,7 +126,11 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         else:
             for key,values in data:
                 for value in values:
-                    self.collect(key,value)
+                    if self.use_tb_vec:
+                        val = list(struct.unpack('d'*self.ncols, value))
+                        self.collect(key,val)
+                    else:
+                        self.collect(key,value)
         # finally, output data
         for key,val in self.close():
             yield key, val
@@ -136,9 +140,13 @@ def runner(job):
     
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    ncols = gopts.getintkey('use_tb_vec')
-    if ncols and ncols <= 0:
-        sys.exit('ncols must be a positive integer (-use_tb_vec ncols)')
+    ncols = None
+    if gopts.iskey('ncols'):
+        ncols = gopts.getintkey('ncols')
+    if ncols:
+        print 'ncols was found: ' + str(ncols)
+        if ncols <= 0:
+            sys.exit('ncols must be a positive integer for typedbytes vector')
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
@@ -160,7 +168,7 @@ def runner(job):
                     reducer=SerialTSQR(blocksize=blocksize,isreducer=True,ncols=ncols),
                     opts=[('numreducetasks',str(nreducers))])
     
-    
+
 
 def starter(prog):
     
@@ -196,12 +204,15 @@ def starter(prog):
     
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
-    gopts.getintkey('use_tb_vec', None)
     
     output = prog.getopt('output')
     if not output:
         prog.addopt('output','%s-qrr%s'%(matname,matext))
-        
+
+    tb_vec = prog.delopt('use_tb_vec')
+    if tb_vec:
+        gopts.getintkey('ncols', int(tb_vec))
+
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
         prog.addopt('jobconf',
