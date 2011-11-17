@@ -87,9 +87,8 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             # No. that seems like something that will introduce
             # bugs.  Maybe we could add a "liberal" flag
             # for that.
-            if not len(value) == self.ncols:
-                return
-        
+            assert(len(value) == self.ncols)
+
         self.data.append(value)
         self.nrows += 1
         
@@ -157,7 +156,6 @@ def runner(job):
             job.additer(mapper="org.apache.hadoop.mapred.lib.IdentityMapper",
                 reducer="org.apache.hadoop.mapred.lib.IdentityReducer",
                 opts=[('numreducetasks',str(nreducers))])
-            job.additer(mapper, reducer, opts=[('numreducetasks',str(nreducers))])
             
         else:
             nreducers = int(part)
