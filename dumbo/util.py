@@ -75,15 +75,10 @@ class GlobalOptions:
         
         self.setkey(key,val)
         return val
-
-
-    def iskey(self,key):
-        return key in self.cache
-
-
+        
     def getstrkey(self,key,default=None):
         return self._get_key(key,default,str)
-
+        
         
     def getintkey(self,key,default=None):
         return self._get_key(key,default,int)
