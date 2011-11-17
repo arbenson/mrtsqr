@@ -11,6 +11,7 @@ import sys
 import os
 import time
 import random
+import struct
 
 import numpy
 import numpy.linalg
@@ -24,7 +25,7 @@ import dumbo.backends.common
 gopts = util.GlobalOptions()
 
 class SerialTSQR(dumbo.backends.common.MapRedBase):
-    def __init__(self,blocksize=3,keytype='random',isreducer=False):
+    def __init__(self,blocksize=3,keytype='random',isreducer=False,ncols=10,nrows=None,use_null_input=False):
         self.blocksize=blocksize
         if keytype=='random':
             self.keyfunc = lambda x: random.randint(0, 4000000000)
@@ -36,21 +37,24 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.isreducer=isreducer
         self.nrows = 0
         self.data = []
-        self.ncols = None
-    
+        self.use_null_input = use_null_input
+        self.ncols = ncols
+        if self.use_null_input:
+            self.rmat = numpy.random.rand(nrows, self.ncols)
+
     def _firstkey(self, i):
         if isinstance(self.first_key, (list,tuple)):
             return (util.flatten(self.first_key),i)
         else:
             return (self.first_key,i)
-    
+
     def array2list(self,row):
         return [float(val) for val in row]
 
     def QR(self):
         A = numpy.array(self.data)
         return numpy.linalg.qr(A,'r')
-        
+
     def compress(self):
         """ Compute a QR factorization on the data accumulated so far. """
         if self.ncols is None:
@@ -67,8 +71,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.data = []
         for row in R:
             self.data.append(self.array2list(row))
-            
-            
+
     def collect(self,key,value):
         if len(self.data) == 0:
             self.first_key = key
@@ -83,51 +86,65 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             # for that.
             if not len(value) == self.ncols:
                 return
+
+        self.compress_if_nec()
         
         self.data.append(value)
         self.nrows += 1
         
+        # write status updates so Hadoop doesn't complain
+        if self.nrows%50000 == 0:
+            self.counters['rows processed'] += 50000
+
+    def fake_collect(self):
+        for row in self.rmat:
+            self.data.append(row)
+        self.compress_if_nec()
+
+    def compress_if_nec(self):
         if len(self.data)>self.blocksize*self.ncols:
             self.counters['QR Compressions'] += 1
             # compress the data
             self.compress()
-            
-        # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
-            self.counters['rows processed'] += 50000
 
     def close(self):
         self.counters['rows processed'] += self.nrows%50000
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
-            yield key, row
-            
+            yield key, struct.pack('d'*len(row),*row)
+
     def __call__(self,data):
         if self.isreducer == False:
             # map job
             for key,value in data:
-                if isinstance(value, str):
-                    # handle conversion from string
-                    value = [float(p) for p in value.split()]
-                self.collect(key,value)
+                if not self.use_null_input:
+                    value = list(struct.unpack('d'*self.ncols, value))
+                    self.collect(key,value)
+                else:
+                    self.fake_collect()
                 
         else:
             for key,values in data:
                 for value in values:
-                    self.collect(key,value)
+                    val = list(struct.unpack('d'*self.ncols, value))
+                    self.collect(key,val)
         # finally, output data
         for key,val in self.close():
             yield key, val
-    
+
+
 def runner(job):
-    #niter = int(os.getenv('niter'))
-    
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    ncols = gopts.getintkey('')
-    if ncols <= 0:
-        sys.exit('ncols must be a positive integer')
+    ncols = gopts.getintkey('ncols')
+    nrows = gopts.getintkey('nrows')
+    use_null_input = False
+    if (nrows != -1):
+        use_null_input = True
+    if (nrows < -1 or nrows == 0):
+        print "Number of null input rows is not a positive integer"
+        sys.exit(1)
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
@@ -142,13 +159,13 @@ def runner(job):
         else:
             nreducers = int(part)
             if i==0:
-                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,ncols)
+                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,
+                                    ncols=ncols,nrows=nrows,use_null_input=use_null_input)
             else:
                 mapper = 'org.apache.hadoop.mapred.lib.IdentityMapper'
             job.additer(mapper=mapper,
-                    reducer=SerialTSQR(blocksize=blocksize,isreducer=True),
+                    reducer=SerialTSQR(blocksize=blocksize,isreducer=True,ncols=ncols),
                     opts=[('numreducetasks',str(nreducers))])
-    
     
 
 def starter(prog):
@@ -160,19 +177,10 @@ def starter(prog):
     
     # set the global opts
     gopts.prog = prog
-
-    gopts.getintkey('ncols', -1)
-    
+   
     mat = prog.delopt('mat')
     if not mat:
         return "'mat' not specified'"
-
-    # add numreps copies of the input
-    numreps = prog.delopt('repetition')
-    if not numreps:
-        numreps = 1
-    for i in range(int(numreps)):
-        prog.addopt('input',mat)
         
     prog.addopt('memlimit','2g')
     
@@ -183,14 +191,30 @@ def starter(prog):
         
     prog.addopt('file',os.path.join(mypath,'util.py'))
 
+    numreps = prog.delopt('repeat')
+    if not numreps:
+        numreps = 1
+    for i in range(int(numreps)):
+        prog.addopt('input',mat)
+
+    rep = prog.delopt('replication')
+    if rep:
+        prog.addopt('jobconf', 'dfs.replication='+str(int(rep)))
+
     matname,matext = os.path.splitext(mat)
     
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
-    
+    gopts.getintkey('ncols', 10)
+    gopts.getintkey('nrows', -1)
+
     output = prog.getopt('output')
     if not output:
         prog.addopt('output','%s-qrr%s'%(matname,matext))
+
+    minsplit = prog.delopt('minsplit')
+    if minsplit is not None:
+        prog.addopt('jobconf', 'mapred.min.split.size='+str(minsplit))
         
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
