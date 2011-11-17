@@ -140,11 +140,11 @@ def runner(job):
     
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    ncols = None
-    if gopts.iskey('ncols'):
+    try:
         ncols = gopts.getintkey('ncols')
+    except:
+        ncols = None
     if ncols:
-        print 'ncols was found: ' + str(ncols)
         if ncols <= 0:
             sys.exit('ncols must be a positive integer for typedbytes vector')
     
