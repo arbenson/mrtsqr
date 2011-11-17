@@ -76,8 +76,8 @@ class GlobalOptions:
         self.setkey(key,val)
         return val
 
+
     def iskey(self,key):
-        print self.cache
         return key in self.cache
 
 
