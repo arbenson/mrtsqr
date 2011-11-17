@@ -24,7 +24,7 @@ import dumbo.backends.common
 gopts = util.GlobalOptions()
 
 class SerialTSQR(dumbo.backends.common.MapRedBase):
-    def __init__(self,blocksize=3,keytype='random',isreducer=False):
+    def __init__(self,blocksize=3,keytype='random',isreducer=False,ncols=None):
         self.blocksize=blocksize
         if keytype=='random':
             self.keyfunc = lambda x: random.randint(0, 4000000000)
@@ -37,6 +37,11 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.nrows = 0
         self.data = []
         self.ncols = None
+        self.use_tb_vec = False
+        if ncols:
+            self.ncols = ncols
+            self.use_tb_vec = True
+
     
     def _firstkey(self, i):
         if isinstance(self.first_key, (list,tuple)):
@@ -101,7 +106,10 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
-            yield key, row
+            if self.use_tb_vec:
+                yield key, struct.pack('d'*len(row),*row)
+            else:
+                yield key, row
             
     def __call__(self,data):
         if self.isreducer == False:
@@ -109,7 +117,10 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             for key,value in data:
                 if isinstance(value, str):
                     # handle conversion from string
-                    value = [float(p) for p in value.split()]
+                    if self.use_tb_vec:
+                        value = list(struct.unpack('d'*self.ncols, value))
+                    else:
+                        value = [float(p) for p in value.split()]
                 self.collect(key,value)
                 
         else:
@@ -125,9 +136,9 @@ def runner(job):
     
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    ncols = gopts.getintkey('')
-    if ncols <= 0:
-        sys.exit('ncols must be a positive integer')
+    ncols = gopts.getintkey('use_tb_vec')
+    if ncols and ncols <= 0:
+        sys.exit('ncols must be a positive integer (-use_tb_vec ncols)')
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
@@ -142,11 +153,11 @@ def runner(job):
         else:
             nreducers = int(part)
             if i==0:
-                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,ncols)
+                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,ncols=ncols)
             else:
                 mapper = 'org.apache.hadoop.mapred.lib.IdentityMapper'
             job.additer(mapper=mapper,
-                    reducer=SerialTSQR(blocksize=blocksize,isreducer=True),
+                    reducer=SerialTSQR(blocksize=blocksize,isreducer=True,ncols=ncols),
                     opts=[('numreducetasks',str(nreducers))])
     
     
@@ -161,8 +172,6 @@ def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-    gopts.getintkey('ncols', -1)
-    
     mat = prog.delopt('mat')
     if not mat:
         return "'mat' not specified'"
@@ -187,6 +196,7 @@ def starter(prog):
     
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
+    gopts.getintkey('use_tb_vec', None)
     
     output = prog.getopt('output')
     if not output:
