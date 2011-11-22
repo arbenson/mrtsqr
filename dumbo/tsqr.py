@@ -38,10 +38,10 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.nrows = 0
         self.data = []
         self.ncols = None
-        self.use_tb_vec = False
+        self.use_tb_str = False
         if ncols is not None:
             self.ncols = ncols
-            self.use_tb_vec = True
+            self.use_tb_str = True
 
     
     def _firstkey(self, i):
@@ -106,7 +106,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
-            if self.use_tb_vec:
+            if self.use_tb_str:
                 yield key, struct.pack('d'*len(row),*row)
             else:
                 yield key, row
@@ -117,7 +117,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             for key,value in data:
                 if isinstance(value, str):
                     # handle conversion from string
-                    if self.use_tb_vec:
+                    if self.use_tb_str:
                         value = list(struct.unpack('d'*self.ncols, value))
                     else:
                         value = [float(p) for p in value.split()]
@@ -126,7 +126,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         else:
             for key,values in data:
                 for value in values:
-                    if self.use_tb_vec:
+                    if self.use_tb_str:
                         val = list(struct.unpack('d'*self.ncols, value))
                         self.collect(key,val)
                     else:
@@ -208,7 +208,7 @@ def starter(prog):
     if not output:
         prog.addopt('output','%s-qrr%s'%(matname,matext))
 
-    tb_vec = prog.delopt('use_tb_vec')
+    tb_vec = prog.delopt('use_tb_str')
     if tb_vec:
         gopts.getintkey('ncols', int(tb_vec))
 
