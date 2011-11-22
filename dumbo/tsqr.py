@@ -25,7 +25,7 @@ import dumbo.backends.common
 gopts = util.GlobalOptions()
 
 class SerialTSQR(dumbo.backends.common.MapRedBase):
-    def __init__(self,blocksize=3,keytype='random',isreducer=False,ncols=None):
+    def __init__(self,blocksize=3,keytype='random',isreducer=False,ncols=None,isfinal=False):
         self.blocksize=blocksize
         if keytype=='random':
             self.keyfunc = lambda x: random.randint(0, 4000000000)
@@ -39,6 +39,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.data = []
         self.ncols = None
         self.use_tb_str = False
+        self.isfinal = isfinal
         if ncols is not None:
             self.ncols = ncols
             self.use_tb_str = True
@@ -106,7 +107,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
-            if self.use_tb_str:
+            if self.use_tb_str and not self.isfinal:
                 yield key, struct.pack('d'*len(row),*row)
             else:
                 yield key, row
@@ -160,12 +161,14 @@ def runner(job):
         else:
             nreducers = int(part)
             if i==0:
-                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,ncols=ncols)
+                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,ncols=ncols,isfinal=False)
+                isfinal=False
             else:
                 mapper = 'org.apache.hadoop.mapred.lib.IdentityMapper'
+                isfinal=True
             job.additer(mapper=mapper,
-                    reducer=SerialTSQR(blocksize=blocksize,isreducer=True,ncols=ncols),
-                    opts=[('numreducetasks',str(nreducers))])
+                        reducer=SerialTSQR(blocksize=blocksize,isreducer=True,ncols=ncols,isfinal=isfinal),
+                        opts=[('numreducetasks',str(nreducers))])
     
 
 
