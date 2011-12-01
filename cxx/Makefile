@@ -1,9 +1,10 @@
-
-CXX=g++44
+# module load gcc; module load mkl
+CXX=g++
 
 CC=$(CXX)
 CXXFLAGS=-Wall -O3  -std=c++0x
-LDFLAGS=-L/usr/lib64/atlas -llapack43 -lf77blas43 -latlas43
+#LDFLAGS=-L$(MKL_LIBDIR) -lmkl_core 
+LDFLAGS=$(MKL) -lpthread
 
 all: tsqr word_count colsums tests
 
@@ -16,6 +17,9 @@ tests: dump_typedbytes_info write_typedbytes_test
 
 test_tsqr: tsqr 
 	cat test/test.mseq | ./tsqr map 2> /dev/null | ./tsqr reduce &> /dev/null
+
+big_test_tsqr: tsqr
+	cat test/A_1M_4.mseq/part-00000 | ./tsqr map 2> /dev/null | ./tsqr reduce &> /dev/null
 
 typedbytes.o: typedbytes.h
 dump_typedbytes_info.o: typedbytes.h
@@ -39,6 +43,6 @@ write_typedbytes_test: typedbytes.o write_typedbytes_test.o
 .PHONY: all clean tests test_tsqr
 
 clean:
-	rm -rf typedbytes.o dump_typedbytes_info.o dump_typedbytes_info
+	rm -rf typedbytes.o dump_typedbytes_info.o dump_typedbytes_info *~
 
 
