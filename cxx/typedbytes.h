@@ -306,16 +306,22 @@ public:
         return _read_data_block(data, size);
     }
     
-    bool read_string(std::string& str) {
+    /**
+     * On success, returns the number of bytes read and placed
+     * into str.  On failure, returns -1.
+     * */
+    size_t read_string(std::string& str) {
         typedbytes_check_type_code(TypedBytesString);
         typedbytes_length len = _read_length();
         str.resize(len);
-        assert(len >= 0);
+        if (len < 0) {
+          return -1;
+	}
         // TODO check for error
         _read_bytes(&str[0], sizeof(unsigned char), (size_t)len);
-        return true;
+        return (size_t)len;
     }
-    
+
     typedbytes_length read_byte_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
         if (lastcode == TypedBytesByteSequence || 
