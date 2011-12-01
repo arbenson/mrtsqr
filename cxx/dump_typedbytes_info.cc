@@ -82,7 +82,7 @@ void dump_typedbytes_primitive(TypedBytesInFile& f, TypedBytesType t, int indent
                 }
                 printf("TypedBytesString: %s\n", s.c_str());
             } else {
-                printf("TypedBytesString: ERROR\n");
+	        printf("TypedBytesString: ERROR\n");
             }
             break;
             
