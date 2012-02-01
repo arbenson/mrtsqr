@@ -24,8 +24,14 @@ import dumbo.backends.common
 # create the global options structure
 gopts = util.GlobalOptions()
 
+class DataFormatException(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
+
 class SerialTSQR(dumbo.backends.common.MapRedBase):
-    def __init__(self,blocksize=3,keytype='random',isreducer=False,ncols=None,isfinal=False):
+    def __init__(self,blocksize=3,keytype='random',isreducer=False,isfinal=False):
         self.blocksize=blocksize
         if keytype=='random':
             self.keyfunc = lambda x: random.randint(0, 4000000000)
@@ -38,12 +44,8 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.nrows = 0
         self.data = []
         self.ncols = None
-        self.use_tb_str = False
+        self.unpacker = None
         self.isfinal = isfinal
-        if ncols is not None:
-            self.ncols = ncols
-            self.use_tb_str = True
-
     
     def _firstkey(self, i):
         if isinstance(self.first_key, (list,tuple)):
@@ -64,18 +66,17 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             return
         if len(self.data) < self.ncols:
             return
-            
+
         t0 = time.time()
         R = self.QR()
         dt = time.time() - t0
         self.counters['numpy time (millisecs)'] += int(1000*dt)
-        
+
         # reset data and re-initialize to R
         self.data = []
         for row in R:
             self.data.append(self.array2list(row))
-            
-            
+                        
     def collect(self,key,value):
         if len(self.data) == 0:
             self.first_key = key
@@ -107,28 +108,53 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
-            if self.use_tb_str and not self.isfinal:
+            # If we are using TypedBytes String and this is not the final output,
+            # then continue to use that format
+            if self.unpacker is not None and not self.isfinal:
                 yield key, struct.pack('d'*len(row),*row)
             else:
                 yield key, row
-            
+
+    def deduce_string_type(val):
+        # first check for TypedBytes list/vector
+        try:
+            [float(p) for p in val.split()]
+        except NumberFormatException, e:
+            if len(val)%8 == 0:
+                ncols = len(val)/8
+                # check for TypedBytes string
+                try:
+                    val = list(struct.unpack(val,'d'*ncols))
+                    self.ncols = ncols
+                    self.unpacker = struct.Struct('d'*ncols)
+                except struct.error, serror:
+                    # no idea what type this is!
+                    raise DataFormatException("Data format is not supported.")
+            else:
+                raise e
+                    
     def __call__(self,data):
         if self.isreducer == False:
             # map job
+
+            # determine the data format
+            self.deduce_string_type(data[0][1])
             for key,value in data:
                 if isinstance(value, str):
                     # handle conversion from string
-                    if self.use_tb_str:
-                        value = list(struct.unpack('d'*self.ncols, value))
+                    if self.unpacker is not None:
+                        value = self.unpacker.unpack(value)
                     else:
                         value = [float(p) for p in value.split()]
                 self.collect(key,value)
                 
         else:
+            # determine the data format
+            self.deduce_string_type(data[0][1][0])            
             for key,values in data:
                 for value in values:
-                    if self.use_tb_str:
-                        val = list(struct.unpack('d'*self.ncols, value))
+                    if self.unpacker is not None:
+                        val = self.unpacker.unpack(value)
                         self.collect(key,val)
                     else:
                         self.collect(key,value)
@@ -141,13 +167,6 @@ def runner(job):
     
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    try:
-        ncols = gopts.getintkey('ncols')
-    except:
-        ncols = None
-    if ncols:
-        if ncols <= 0:
-            sys.exit('ncols must be a positive integer for typedbytes vector')
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
@@ -161,16 +180,15 @@ def runner(job):
         else:
             nreducers = int(part)
             if i==0:
-                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,ncols=ncols,isfinal=False)
+                mapper = SerialTSQR(blocksize=blocksize,isreducer=False,isfinal=False)
                 isfinal=False
             else:
                 mapper = 'org.apache.hadoop.mapred.lib.IdentityMapper'
                 isfinal=True
             job.additer(mapper=mapper,
-                        reducer=SerialTSQR(blocksize=blocksize,isreducer=True,ncols=ncols,isfinal=isfinal),
+                        reducer=SerialTSQR(blocksize=blocksize,isreducer=True,isfinal=isfinal),
                         opts=[('numreducetasks',str(nreducers))])
     
-
 
 def starter(prog):
     
@@ -210,10 +228,6 @@ def starter(prog):
     output = prog.getopt('output')
     if not output:
         prog.addopt('output','%s-qrr%s'%(matname,matext))
-
-    tb_vec = prog.delopt('use_tb_str')
-    if tb_vec:
-        gopts.getintkey('ncols', int(tb_vec))
 
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
