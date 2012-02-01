@@ -115,32 +115,34 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             else:
                 yield key, row
 
-    def deduce_string_type(val):
+    def deduce_string_type(self, val):
         # first check for TypedBytes list/vector
         try:
             [float(p) for p in val.split()]
-        except NumberFormatException, e:
+        except:
+            if len(val) == 0: return False
             if len(val)%8 == 0:
                 ncols = len(val)/8
                 # check for TypedBytes string
                 try:
-                    val = list(struct.unpack(val,'d'*ncols))
+                    val = list(struct.unpack('d'*ncols, val))
                     self.ncols = ncols
                     self.unpacker = struct.Struct('d'*ncols)
+                    return True
                 except struct.error, serror:
                     # no idea what type this is!
                     raise DataFormatException("Data format is not supported.")
             else:
-                raise e
+                raise DataFormatException("Number of data bytes is not a multiple of 8.")
                     
     def __call__(self,data):
+        deduced = False
         if self.isreducer == False:
             # map job
-
-            # determine the data format
-            self.deduce_string_type(data[0][1])
             for key,value in data:
                 if isinstance(value, str):
+                    if not deduced:
+                        deduced = self.deduce_string_type(value)
                     # handle conversion from string
                     if self.unpacker is not None:
                         value = self.unpacker.unpack(value)
@@ -150,9 +152,10 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
                 
         else:
             # determine the data format
-            self.deduce_string_type(data[0][1][0])            
             for key,values in data:
                 for value in values:
+                    if not deduced:
+                        deduced = self.deduce_string_type(value)
                     if self.unpacker is not None:
                         val = self.unpacker.unpack(value)
                         self.collect(key,val)
