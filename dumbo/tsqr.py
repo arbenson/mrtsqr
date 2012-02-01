@@ -108,10 +108,13 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
-            # If we are using TypedBytes String and this is not the final output,
-            # then continue to use that format
-            if self.unpacker is not None and not self.isfinal:
-                yield key, self.unpacker.pack(*row)
+            # If this is not the final output, we can use a TypedBytes String format
+            if not self.isfinal:
+                # If we already created the unpacker, then we can use it for efficiency
+                if self.unpacker is not None:
+                    yield key, self.unpacker.pack(*row)
+                else:
+                    yield key, struct.pack('d'*len(row), *row)
             else:
                 yield key, row
 
