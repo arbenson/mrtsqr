@@ -111,7 +111,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             # If we are using TypedBytes String and this is not the final output,
             # then continue to use that format
             if self.unpacker is not None and not self.isfinal:
-                yield key, struct.pack('d'*len(row),*row)
+                yield key, self.unpacker.pack(*row)
             else:
                 yield key, row
 
@@ -133,7 +133,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
                     # no idea what type this is!
                     raise DataFormatException("Data format is not supported.")
             else:
-                raise DataFormatException("Number of data bytes is not a multiple of 8.")
+                raise DataFormatException("Number of data bytes ({0}) is not a multiple of 8.".format(len(val)))
                     
     def __call__(self,data):
         deduced = False
