@@ -21,24 +21,35 @@ from dumbo.decor import primary, secondary
 gopts = util.GlobalOptions()
 
 """
+-------------------
+Austin R. Benson
+David F. Gleich
+
+copyright 2012
+-------------------
 Full TSQR algorithm for MapReduce
+-------------------
+
+This algorithm computes the QR decomposition for a matrix.
+
 
 Phase 1:
-map: FullTSQRMap1
-reduce: none
+map: SimpleSerialTSQR
+reduce: identity
 
 Phase 2:
-map: none
+map:
 reduce: FullTSQRRed2
 
 Phase 3:
-map: none
+map: identity
 reduce: FullTSQRRed3
 """
 
 """
 TODO:
-
+-Get multiple outputs working (need the feathers jar)
+-Change FullTSQRRed3 from map task to reduce task
 -Test, test, test
 -Benchmark against AR^{-1} + IR
 """
@@ -54,7 +65,7 @@ Output:
   2. Q matrix: <mapper id, row + [row_id]>
 """
 
-@opt("getpath", "yes")
+#@opt("getpath", "yes")
 class FullTSQRMap1(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.nrows = 0
@@ -62,10 +73,8 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
         self.data = []
         self.ncols = None
         self.mapper_id = uuid.uuid1().hex
-    
-    def QR(self):
-        A = numpy.array(self.data)
-        return numpy.linalg.qr(A)
+        self.Q = None
+        self.R = None
     
     def collect(self,key,value):
         if self.ncols == None:
@@ -74,7 +83,7 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
         else:
             assert(len(value) == self.ncols)
 
-        self.keys.append(key)        
+        self.keys.append(key)
         self.data.append(value)
 
         self.nrows += 1
@@ -84,15 +93,13 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
             self.counters['rows processed'] += 50000
 
     def close(self):
-        Q, R = self.QR()
+        A = numpy.array(self.data)
+        QR = numpy.linalg.qr(A)        
+        self.Q = QR[0].tolist()
+        self.R = QR[1].tolist()
+        
         self.counters['rows processed'] += self.nrows%50000
 
-        for i, row in enumerate(Q):
-            key = self.keys[i]
-            row = row.append(key)
-            yield ("Q_%d" % self.mapper_id, self.mapper_id), row
-        for i, row in enumerate(R):
-            yield ("R_%d" % self.mapper_id, self.mapper_id), row
 
     def __call__(self, data):
         for key,value in data:
@@ -101,9 +108,18 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
                 value = [float(p) for p in value.split()]
             self.collect(key,value)
                 
-        # finally, output data
-        for key,val in self.close():
-            yield key,val
+        self.close()
+        for i, row in enumerate(self.Q):
+            key = self.keys[i]
+            row = row.append(key)
+            print >>sys.stderr, "about to yield (Q)"
+            yield self.mapper_id, row
+            #yield ("Q_%d" % self.mapper_id, self.mapper_id), row
+        for i, row in enumerate(self.R):
+            print >>sys.stderr, "about to yield (R)"            
+            yield self.mapper_id, row            
+            #yield ("R_%d" % self.mapper_id, self.mapper_id), row        
+        print >>sys.stderr, "done"
 
 """
 FullTSQRRed2
@@ -115,14 +131,14 @@ Computes [R_1, ..., R_n] = Q2R_{final}
 
 Output:
 1. R_final: R in A = QR with key-value pairs <i, row>
-2. Q2: <mapper_id, 
+2. Q2: <mapper_id, row>
 
 where Q2 is a list of key value pairs.
 
 Each key corresponds to a mapperid from stage 1 and that keys value is the
 Q2 matrix corresponding to that mapper_id
 """
-@opt("getpath", "yes")
+#@opt("getpath", "yes")
 class FullTSQRRed2(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.R_data = {}
@@ -176,7 +192,7 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
 
 
 """
-FullTSQRRed2
+FullTSQRRed3
 ------------
 
 input: Q1 as <mapper_id, [row] + [row_id]>
@@ -225,3 +241,74 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
 
         for key, val in self.close():
             yield key, val
+
+
+
+def runner(job):    
+    schedule = gopts.getstrkey('reduce_schedule')
+    
+    schedule = schedule.split(',')
+    print "schedule is: " + str(schedule)
+    for i,part in enumerate(schedule):
+        if i == 0:
+            nreducers = int(part[1:])            
+            map = FullTSQRMap1()
+            red = "org.apache.hadoop.mapred.lib.IdentityReducer"
+            job.additer(mapper=map, reducer=red, opts=[('numreducetasks',str(nreducers))])
+            
+        """
+        elif i == 1:
+            nreducers = 1
+            map = "org.apache.hadoop.mapred.lib.IdentityMapper"
+            red = FullTSQRRed2()
+        elif i == 2:
+            nreducers = int(part[1:])
+            map = "org.apache.hadoop.mapred.lib.IdentityMapper"
+            red = FullTSQRRed3()
+        """
+
+    
+
+def starter(prog):
+    print "running starter!"
+    
+    mypath =  os.path.dirname(__file__)
+    print "my path: " + mypath
+    
+    # set the global opts
+    gopts.prog = prog
+
+    prog.addopt('memlimit','2g')    
+   
+    mat = prog.delopt('mat')
+    if not mat:
+        return "'mat' not specified'"
+        
+    nonumpy = prog.delopt('use_system_numpy')
+    if nonumpy is None:
+        print >> sys.stderr, 'adding numpy egg: %s'%(str(nonumpy))
+        prog.addopt('libegg', 'numpy')        
+        
+    prog.addopt('file',os.path.join(mypath,'util.py'))
+    
+    prog.addopt('input',mat)
+    matname,matext = os.path.splitext(mat)
+    
+    gopts.getstrkey('reduce_schedule','1')
+    
+    output = prog.getopt('output')
+    if not output:
+        prog.addopt('output','%s-qrr%s'%(matname,matext))
+        
+    splitsize = prog.delopt('split_size')
+    if splitsize is not None:
+        prog.addopt('jobconf',
+            'mapreduce.input.fileinputformat.split.minsize='+str(splitsize))
+
+    prog.addopt('overwrite','yes')
+    prog.addopt('jobconf','mapred.output.compress=true')
+    
+    gopts.save_params()
+
+if __name__ == '__main__':
+    dumbo.main(runner, starter)
