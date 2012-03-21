@@ -14,7 +14,13 @@ def mapper(key,value):
     valarray = [float(v) for v in value.split()]
     if len(valarray) == 0:
         return
-    yield key, valarray
+    # for typed bytes string output, set the following to True
+    # TODO(arbenson): make this cleaner
+    use_tb_str = False
+    if not use_tb_str:
+        yield key, valarray
+    else:
+        yield key, struct.pack('d'*len(valarray), *valarray)
     
 class Converter:
     def __init__(self,opts):
