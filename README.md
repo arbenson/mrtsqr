@@ -29,15 +29,19 @@ Some C++ implementations are also provided in the `mrtsqr/cxx` directory.
 This package describes the code and experiments used in the paper
 by Constantine and Gleich:
 
-* Tall and skinny QR factorizations in MapReduce architectures
+* Tall and skinny QR factorizations in MapReduce architectures [[pdf](http://www.cs.purdue.edu/homes/dgleich/publications/Constantine%202011%20-%20TSQR.pdf)]
 
 This fork includes Austin's work on this project while at the
 University of California, Berkeley.  Part of the work was completed in
 part for Math 221: Advanced Matrix Computations (Prof. James Demmel) and
 CS C267: Applications of Parallel Computers (Prof. James Demmel and Prof. Kathy Yelick).
 
-See the [web page](http://arbenson.github.com/mrtsqr) for links to the paper
-and reports for the classes.
+Reports and posters can be found at the following places:
+
+* [Math 221 report](http://arbenson.github.com/portfolio/Math221/AustinBenson-math221-report.pdf) (Fall 2011)
+* [Math 221 poster](http://arbenson.github.com/portfolio/Math221/AustinBenson-math221-poster.pdf) (Fall 2011)
+* [CS C267 report](http://arbenson.github.com/portfolio/CS267/AustinBenson-cs267-report.pdf) (Spring 2011)
+* [CS C267 poster](http://arbenson.github.com/portfolio/CS267/AustinBenson-cs267-poster.pdf) (Spring 2011)
 
 Synopsis
 --------
