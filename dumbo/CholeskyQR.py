@@ -126,9 +126,10 @@ class AtA(dumbo.backends.common.MapRedBase):
     def close(self):
         self.counters['rows processed'] += self.nrows%50000
         self.compress()
-        for ind, row in enumerate(self.A_curr.getA()):
-            r = self.array2list(row)
-            yield ind, struct.pack('d'*len(r),*r)
+        if self.A_curr is not None:
+            for ind, row in enumerate(self.A_curr.getA()):
+                r = self.array2list(row)
+                yield ind, struct.pack('d'*len(r),*r)
 
             
     def __call__(self,data):
