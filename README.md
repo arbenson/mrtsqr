@@ -1,8 +1,9 @@
-MRTSQR: Tall-and-skinny QR in MapReduce
+MapReduce Matrix Computations
 ======
 
 ### David F. Gleich
 ### Paul G. Constantine
+### Austin R. Benson
 
 The QR factorization is a standard matrix factorization used to solve
 many problems.  Probably the most famous is linear regression:
@@ -19,13 +20,24 @@ of a tall-and-skinny matrix using Hadoop's implementation of the
 MapReduce computational platform.  The underlying
 algorithm for this implementation is due to Demmel et al. .
 
-The codes are written in Python, and use the NumPy library
+Most codes are written in Python, and use the NumPy library
 for the numerical routines.  This introduces a mild-ineffiency
 into the code, which we explore by studying three different 
 packages to use Hadoop with Python: dumbo, pydoop, and hadoopy.
+Some C++ implementations are also provided in the `mrtsqr/cxx` directory.
 
-This package describes the code and experiments used in our 
-paper: A tall-and-skinny QR factorization in MapReduce.
+This package describes the code and experiments used in the paper
+by Constantine and Gleich:
+
+* Tall and skinny QR factorizations in MapReduce architectures
+
+This fork includes Austin's work on this project while at the
+University of California, Berkeley.  Part of the work was completed in
+part for Math 221: Advanced Matrix Computations (Prof. James Demmel) and
+CS C267: Applications of Parallel Computers (Prof. James Demmel and Prof. Kathy Yelick).
+
+See the [web page](http://arbenson.github.com/mrtsqr) for links to the paper
+and reports for the classes.
 
 Synopsis
 --------
