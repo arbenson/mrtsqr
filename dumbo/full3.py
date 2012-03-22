@@ -53,11 +53,11 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
         self.row_keys = {}
         self.Q2_data = {}
         self.Q_final_out = {}
-        self.ncols = 10
-        self.parse_q2(q2path)
+        self.ncols = None
+        self.q2path = q2path
 
-    def parse_q2(self, file):
-        f = open(file)
+    def parse_q2(self):
+        f = open(self.q2path)
         for line in f:
             if len(line) > 5:
                 ind1 = line.find("'")
@@ -75,12 +75,16 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
     # key2: row identifier
     # value: row of Q1
     def collect(self, key1, key2, value):
+        row = [float(val) for val in value]
+        if self.ncols is None:
+            self.ncols = len(row)
+            self.parse_q2()
+        
         if key1 not in self.Q1_data:
             self.Q1_data[key1] = []
             assert(key1 not in self.row_keys)
             self.row_keys[key1] = []
 
-        row = [float(val) for val in value]
         self.Q1_data[key1].append(row)
         self.row_keys[key1].append(key2)
 
