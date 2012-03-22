@@ -58,7 +58,7 @@ print split
 os.system(cmd2)
 
 # Q2 file needs parsing before being distributed to phase 3
-Q2_file = "%s_Q2.txt" % (out1)
+Q2_file = "%s_Q2.txt" % (out2)
 cat_cmd = "dumbo cat %s/Q2 -hadoop nersc > %s" % (out2, Q2_file)
 os.system(cat_cmd)
 
