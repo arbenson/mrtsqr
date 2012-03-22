@@ -47,13 +47,29 @@ input: Q2 comes attached as a text file, which is then parsed on the fly
 output: Q as <row_id, row>
 """
 class FullTSQRRed3(dumbo.backends.common.MapRedBase):
-    def __init__(self):
+    def __init__(self, q2path):
         # TODO implement this
-        self.parse_input_Q2()
         self.Q1_data = {}
         self.row_keys = {}
         self.Q2_data = {}
         self.Q_final_out = {}
+        self.ncols = 10
+        self.parse_q2(q2path)
+
+    def parse_q2(self, file):
+        f = open(file)
+        for line in f:
+            if len(line) > 5:
+                ind1 = line.find("'")
+                ind2 = line.rfind("'")
+                key = line[ind1+1:ind2]           
+                line = line[ind2+3:]
+                line = line.strip()
+                line = line.split(',')
+                line = [float(v) for v in line]
+                line = numpy.array(line)
+                mat = numpy.reshape(line, (self.ncols, self.ncols))
+                self.Q2_data[key] = mat        
 
     # key1: unique mapper_id
     # key2: row identifier
@@ -76,13 +92,13 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
             Q2 = numpy.mat(self.Q2_data[key])
             Q_out = Q1*Q2
             for i, row in enumerate(Q_out.getA()):
-                yield self.row_keys[key][i], row
+                yield self.row_keys[key][i], row.tolist()
 
     def __call__(self,data):
         for key1, values in data:
             for value in values:
                 key2 = value[-1]
-                val = val[0:-1]
+                value = value[0:-1]
                 self.collect(key1, key2, value)            
 
         for key, val in self.close():
@@ -91,8 +107,9 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
 
 def runner(job):
     mapper = "org.apache.hadoop.mapred.lib.IdentityMapper"
-    reducer = FullTSQRRed2()
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(1))])
+    q2path = "FT_Q2.txt"
+    reducer = FullTSQRRed3(q2path)
+    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(100))])
 
 def starter(prog):
     print "running starter!"
@@ -121,6 +138,11 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     
     gopts.getstrkey('reduce_schedule','1')
+
+    q2path = prog.delopt('q2path')
+    if not q2path:
+        return "'q2path' not specified"
+    prog.addopt('file',os.path.join(mypath,q2path))
     
     output = prog.getopt('output')
     if not output:

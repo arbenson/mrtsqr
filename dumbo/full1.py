@@ -27,8 +27,6 @@ from dumbo import opt
 from dumbo.lib import MultiMapper, JoinReducer
 from dumbo.decor import primary, secondary
 
-import ftsqr
-
 # create the global options structure
 gopts = util.GlobalOptions()
 
