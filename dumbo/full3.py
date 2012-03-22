@@ -107,7 +107,7 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
 
 def runner(job):
     mapper = "org.apache.hadoop.mapred.lib.IdentityMapper"
-    q2path = "FT_Q2.txt"
+    q2path = gopts.getstrkey('q2path')
     reducer = FullTSQRRed3(q2path)
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(100))])
 
@@ -143,6 +143,8 @@ def starter(prog):
     if not q2path:
         return "'q2path' not specified"
     prog.addopt('file',os.path.join(mypath,q2path))
+
+    gopts.getstrkey('q2path', q2path)    
     
     output = prog.getopt('output')
     if not output:
