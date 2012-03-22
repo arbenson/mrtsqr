@@ -54,10 +54,7 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
         self.data = []
         self.ncols = None        
         self.mapper_id = uuid.uuid1().hex
-        self.isreducer=False
         self.unpacker = None
-        self.isfinal = False
-
     
     def collect(self,key,value):
         if self.ncols == None:
@@ -85,12 +82,10 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
         for i, row in enumerate(self.Q):
             key = self.keys[i]
             row.append(key)
-            yield ("Q_%s" % str(self.mapper_id), self.mapper_id), row            
-            #yield self.mapper_id, row
+            yield ("Q_%s" % str(self.mapper_id), self.mapper_id), row
 
         for i, row in enumerate(self.R):
-            yield ("R_%s" % str(self.mapper_id), self.mapper_id), row                    
-            #yield self.mapper_id, row
+            yield ("R_%s" % str(self.mapper_id), self.mapper_id), row
 
     def deduce_string_type(self, val):
         # first check for TypedBytes list/vector
@@ -111,33 +106,21 @@ class FullTSQRMap1(dumbo.backends.common.MapRedBase):
                     raise DataFormatException("Data format is not supported.")
             else:
                 raise DataFormatException("Number of data bytes ({0}) is not a multiple of 8.".format(len(val)))
-            
+
     def __call__(self,data):
         deduced = False
-        if self.isreducer == False:
-            # map job
-            for key,value in data:
-                if isinstance(value, str):
-                    if not deduced:
-                        deduced = self.deduce_string_type(value)
-                    # handle conversion from string
-                    if self.unpacker is not None:
-                        value = self.unpacker.unpack(value)
-                    else:
-                        value = [float(p) for p in value.split()]
-                self.collect(key,value)
-                
-        else:
-            # determine the data format
-            for key,values in data:
-                for value in values:
-                    if not deduced:
-                        deduced = self.deduce_string_type(value)
-                    if self.unpacker is not None:
-                        val = self.unpacker.unpack(value)
-                        self.collect(key,val)
-                    else:
-                        self.collect(key,value)
+        # map job
+        for key,value in data:
+            if isinstance(value, str):
+                if not deduced:
+                    deduced = self.deduce_string_type(value)
+                # handle conversion from string
+                if self.unpacker is not None:
+                    value = self.unpacker.unpack(value)
+                else:
+                    value = [float(p) for p in value.split()]
+            self.collect(key,value)
+
         # finally, output data
         for key,val in self.close():
             yield key, val
