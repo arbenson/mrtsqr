@@ -24,6 +24,8 @@ Most codes are written in Python, and use the NumPy library
 for the numerical routines.  This introduces a mild-ineffiency
 into the code, which we explore by studying three different 
 packages to use Hadoop with Python: dumbo, pydoop, and hadoopy.
+The feathers library, which supplements dumbo, is used for the
+full TSQR computation.
 Some C++ implementations are also provided in the `mrtsqr/cxx` directory.
 
 This package describes the code and experiments used in the paper
@@ -59,6 +61,7 @@ at other stages, there are a few things you must do.
 * dumbo is installed and working
 * numpy is installed and working
 * hadoop is installed and working
+* feathers is installed and working for FullTSQR (optional) 
 
 ### Example
 
