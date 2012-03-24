@@ -17,6 +17,7 @@ import numpy
 import numpy.linalg
 
 import util
+import base
 
 import dumbo
 import dumbo.backends.common
@@ -24,14 +25,9 @@ import dumbo.backends.common
 # create the global options structure
 gopts = util.GlobalOptions()
 
-class DataFormatException(Exception):
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
-
-class SerialTSQR(dumbo.backends.common.MapRedBase):
+class SerialTSQR(base.MatrixHandler):
     def __init__(self,blocksize=3,keytype='random',isreducer=False,isfinal=False):
+        base.MatrixHandler.__init__(self)
         self.blocksize=blocksize
         if keytype=='random':
             self.keyfunc = lambda x: random.randint(0, 4000000000)
@@ -43,8 +39,6 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         self.isreducer=isreducer
         self.nrows = 0
         self.data = []
-        self.ncols = None
-        self.unpacker = None
         self.isfinal = isfinal
     
     def _firstkey(self, i):
@@ -53,9 +47,6 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         else:
             return (self.first_key,i)
     
-    def array2list(self,row):
-        return [float(val) for val in row]
-
     def QR(self):
         A = numpy.array(self.data)
         return numpy.linalg.qr(A,'r')
@@ -75,7 +66,7 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
         # reset data and re-initialize to R
         self.data = []
         for row in R:
-            self.data.append(self.array2list(row))
+            self.data.append(util.array2list(row))
                         
     def collect(self,key,value):
         if len(self.data) == 0:
@@ -118,26 +109,6 @@ class SerialTSQR(dumbo.backends.common.MapRedBase):
             else:
                 yield key, row
 
-    def deduce_string_type(self, val):
-        # first check for TypedBytes list/vector
-        try:
-            [float(p) for p in val.split()]
-        except:
-            if len(val) == 0: return False
-            if len(val)%8 == 0:
-                ncols = len(val)/8
-                # check for TypedBytes string
-                try:
-                    val = list(struct.unpack('d'*ncols, val))
-                    self.ncols = ncols
-                    self.unpacker = struct.Struct('d'*ncols)
-                    return True
-                except struct.error, serror:
-                    # no idea what type this is!
-                    raise DataFormatException("Data format is not supported.")
-            else:
-                raise DataFormatException("Number of data bytes ({0}) is not a multiple of 8.".format(len(val)))
-                    
     def __call__(self,data):
         deduced = False
         if self.isreducer == False:
@@ -196,8 +167,7 @@ def runner(job):
                         opts=[('numreducetasks',str(nreducers))])
     
 
-def starter(prog):
-    
+def starter(prog):    
     print "running starter!"
     
     mypath =  os.path.dirname(__file__)
@@ -225,6 +195,7 @@ def starter(prog):
         prog.addopt('libegg', 'numpy')
         
     prog.addopt('file',os.path.join(mypath,'util.py'))
+    prog.addopt('file',os.path.join(mypath,'base.py'))    
 
     matname,matext = os.path.splitext(mat)
     
