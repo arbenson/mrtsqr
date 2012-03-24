@@ -5,9 +5,6 @@ Cholesky.py
 ===========
 
 Implement a Cholesky QR algorithm using dumbo and numpy.
-
-Assumes that matrix is stored as a typedbytes vector and that
-the user knows how many columns are in the matrix.
 """
 
 import sys
@@ -31,7 +28,7 @@ gopts = util.GlobalOptions()
 class Cholesky(dumbo.backends.common.MapRedBase):
     def __init__(self,ncols=10):
         self.ncols = ncols
-        self.data = [numpy.zeros((1, ncols)) for x in range(ncols)]
+        self.data = [numpy.zeros((1, ncols)).tolist()[0] for x in range(ncols)]
     
     def close(self):
         L = numpy.linalg.cholesky(self.data)
@@ -49,12 +46,14 @@ class Cholesky(dumbo.backends.common.MapRedBase):
 
 class AtA(base.MatrixHandler):
     def __init__(self,blocksize=3,isreducer=False,ncols=10):
+        base.MatrixHandler.__init__(self)        
         self.blocksize=blocksize
         self.isreducer=isreducer
         self.nrows = 0
         self.data = []
         self.A_curr = None
         self.row = None
+        self.ncols = ncols
     
     def compress(self):
         # Compute AtA on the data accumulated so far
@@ -109,19 +108,16 @@ class AtA(base.MatrixHandler):
     def __call__(self,data):
         deduced = False
         if self.isreducer == False:
-            # map job
-            if isinstance(value, str):
-                if not deduced:
-                    deduced = self.deduce_string_type(value)
-                # handle conversion from string
-                if self.unpacker is not None:
-                    value = self.unpacker.unpack(value)
-                else:
-                    value = [float(p) for p in value.split()]            
             for key,value in data:
-                value = list(struct.unpack('d'*self.ncols, value))
-                self.collect(key,value)
-
+                if isinstance(value, str):
+                    if not deduced:
+                        deduced = self.deduce_string_type(value)
+                    # handle conversion from string
+                    if self.unpacker is not None:
+                        value = self.unpacker.unpack(value)
+                    else:
+                        value = [float(p) for p in value.split()]
+                self.collect(key,value)            
         else:
             for key,values in data:
                 for value in values:
