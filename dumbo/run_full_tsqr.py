@@ -13,8 +13,8 @@ output_name is used to derive the name of the outpute directories.
 The outputs of the three jobs will be stored in output_name_1,
 output_name_2, and output_name_3.
 
-This script relies on the script parse.sh, which is used for a preliminary
-parsing of the output of phase 2.  parse.sh was designed to handle the
+This script relies on the script q2parse.sh, which is used for a preliminary
+parsing of the output of phase 2.  q2parse.sh was designed to handle the
 output on NERSC's Magellan cluster.  It has not been tested on other
 Hadoop clusters.
 
@@ -62,7 +62,7 @@ Q2_file = "%s_Q2.txt" % (out2)
 cat_cmd = "dumbo cat %s/Q2 -hadoop nersc > %s" % (out2, Q2_file)
 os.system(cat_cmd)
 
-parse_cmd = "sh parse.sh %s" % (Q2_file)
+parse_cmd = "sh q2parse.sh %s" % (Q2_file)
 os.system(parse_cmd)
 
 in3 = "%s/Q_*" % (out1)
@@ -73,3 +73,6 @@ cmd3 = "dumbo start full3.py -mat %s -output %s -q2path %s -use_system_numpy \
 print "running third phase..."
 print split
 os.system(cmd3)
+
+rm_cmd = "rm -rf %s" % (Q2_file)
+os.system(rm_cmd)
