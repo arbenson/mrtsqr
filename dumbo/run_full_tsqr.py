@@ -41,11 +41,12 @@ except:
 
 split = "-"*60
 
-print "running first phase..."
-print split
 out1 = "%s_1" % (out)
 cmd1 = "dumbo start full1.py -mat %s -output %s -use_system_numpy \
         -hadoop nersc -libjar feathers.jar" % (in1, out1)
+print "running first phase..."
+print "(command is: %s)" % (cmd1)
+print split
 os.system(cmd1)
 
 in2 = "%s/R_*" % (out1)
@@ -54,6 +55,7 @@ cmd2 = "dumbo start full2.py -mat %s -output %s -use_system_numpy \
         -hadoop nersc -libjar feathers.jar" % (in2, out2)
 
 print "running second phase..."
+print "(command is: %s)" % (cmd2)
 print split
 os.system(cmd2)
 
@@ -71,6 +73,7 @@ cmd3 = "dumbo start full3.py -mat %s -output %s -q2path %s -use_system_numpy \
         -hadoop nersc -libjar feathers.jar" % (in3, out3, Q2_file)
 
 print "running third phase..."
+print "(command is: %s)" % (cmd3)
 print split
 os.system(cmd3)
 
