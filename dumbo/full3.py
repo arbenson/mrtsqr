@@ -110,31 +110,19 @@ def runner(job):
     reducer = FullTSQRRed3(q2path)
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(100))])
 
+
 def starter(prog):
-    print "running starter!"
-    
-    mypath =  os.path.dirname(__file__)
-    print "my path: " + mypath
-    
     # set the global opts
     gopts.prog = prog
 
-    mat = prog.delopt('mat')
-    if not mat:
-        return "'mat' not specified'"
-
-    prog.addopt('input',mat)
-
-    prog.addopt('memlimit','2g')
-    
-    nonumpy = prog.delopt('use_system_numpy')
-    if nonumpy is None:
-        print >> sys.stderr, 'adding numpy egg: %s'%(str(nonumpy))
-        prog.addopt('libegg', 'numpy')
-        
-    prog.addopt('file',os.path.join(mypath,'util.py'))
+    mat = base.starter_helper(prog)
+    if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)
+    # TODO: change default output
+    output = prog.getopt('output')
+    if not output:
+        prog.addopt('output','%s-qrr%s'%(matname,matext))
     
     gopts.getstrkey('reduce_schedule','1')
 
@@ -145,14 +133,11 @@ def starter(prog):
 
     gopts.getstrkey('q2path', q2path)    
     
-    output = prog.getopt('output')
-    if not output:
-        prog.addopt('output','%s-qrr%s'%(matname,matext))
-
-    prog.addopt('overwrite','yes')
-    prog.addopt('jobconf','mapred.output.compress=true')
-    
     gopts.save_params()
+
 
 if __name__ == '__main__':
     dumbo.main(runner, starter)
+
+
+
