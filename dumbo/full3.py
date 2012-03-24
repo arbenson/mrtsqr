@@ -25,10 +25,6 @@ import base
 import dumbo
 import dumbo.backends.common
 
-from dumbo import opt
-from dumbo.lib import MultiMapper, JoinReducer
-from dumbo.decor import primary, secondary
-
 # create the global options structure
 gopts = util.GlobalOptions()
 
@@ -129,7 +125,7 @@ def starter(prog):
     q2path = prog.delopt('q2path')
     if not q2path:
         return "'q2path' not specified"
-    prog.addopt('file',os.path.join(mypath,q2path))
+    prog.addopt('file', os.path.join(os.path.dirname(__file__), q2path))
 
     gopts.getstrkey('q2path', q2path)    
     
@@ -138,6 +134,4 @@ def starter(prog):
 
 if __name__ == '__main__':
     dumbo.main(runner, starter)
-
-
 

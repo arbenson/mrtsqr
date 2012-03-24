@@ -23,10 +23,7 @@ import util
 import base
 
 import dumbo
-import dumbo.backends.common
 from dumbo import opt
-from dumbo.lib import MultiMapper, JoinReducer
-from dumbo.decor import primary, secondary
 
 # create the global options structure
 gopts = util.GlobalOptions()
