@@ -18,7 +18,6 @@ import dumbo.backends.common
 ID_MAPPER = 'org.apache.hadoop.mapred.lib.IdentityMapper'
 ID_REDUCER = 'org.apache.hadoop.mapred.lib.IdentityReducer'
 
-
 class DataFormatException(Exception):
     def __init__(self, value):
         self.value = value
@@ -29,7 +28,7 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.ncols = None
         self.unpacker = None
-    
+
     def deduce_string_type(self, val):
         # first check for TypedBytes list/vector
         try:
