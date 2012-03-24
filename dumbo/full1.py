@@ -14,14 +14,13 @@ import os
 import time
 import random
 import struct
+import uuid
 
 import numpy
 import numpy.linalg
 
 import util
 import base
-
-import uuid
 
 import dumbo
 import dumbo.backends.common
@@ -102,7 +101,7 @@ class FullTSQRMap1(base.MatrixHandler):
 
 def runner(job):
     mapper = FullTSQRMap1()
-    reducer="org.apache.hadoop.mapred.lib.IdentityReducer"
+    reducer = base.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 
 def starter(prog):

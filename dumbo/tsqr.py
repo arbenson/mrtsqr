@@ -150,8 +150,7 @@ def runner(job):
         if part.startswith('s'):
             nreducers = int(part[1:])
             # these tasks should just spray data and compress
-            job.additer(mapper="org.apache.hadoop.mapred.lib.IdentityMapper",
-                reducer="org.apache.hadoop.mapred.lib.IdentityReducer",
+            job.additer(mapper = base.ID_MAPPER, reducer = base.ID_REDUCER,
                 opts=[('numreducetasks',str(nreducers))])
             
         else:
@@ -160,60 +159,28 @@ def runner(job):
                 mapper = SerialTSQR(blocksize=blocksize,isreducer=False,isfinal=False)
                 isfinal=False
             else:
-                mapper = 'org.apache.hadoop.mapred.lib.IdentityMapper'
+                mapper = base.ID_MAPPER
                 isfinal=True
             job.additer(mapper=mapper,
                         reducer=SerialTSQR(blocksize=blocksize,isreducer=True,isfinal=isfinal),
                         opts=[('numreducetasks',str(nreducers))])
     
 
-def starter(prog):    
-    print "running starter!"
-    
-    mypath =  os.path.dirname(__file__)
-    print "my path: " + mypath
-    
-    # set the global opts
+def starter(prog):
+    # set the global opts    
     gopts.prog = prog
-
-    mat = prog.delopt('mat')
-    if not mat:
-        return "'mat' not specified'"
-
-    # add numreps copies of the input
-    numreps = prog.delopt('repetition')
-    if not numreps:
-        numreps = 1
-    for i in range(int(numreps)):
-        prog.addopt('input',mat)
-        
-    prog.addopt('memlimit','2g')
-    
-    nonumpy = prog.delopt('use_system_numpy')
-    if nonumpy is None:
-        print >> sys.stderr, 'adding numpy egg: %s'%(str(nonumpy))
-        prog.addopt('libegg', 'numpy')
-        
-    prog.addopt('file',os.path.join(mypath,'util.py'))
-    prog.addopt('file',os.path.join(mypath,'base.py'))    
-
-    matname,matext = os.path.splitext(mat)
     
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
+
+    mat = base.starter_helper(prog)
+    if not mat: return "'mat' not specified"
     
+    matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
         prog.addopt('output','%s-qrr%s'%(matname,matext))
 
-    splitsize = prog.delopt('split_size')
-    if splitsize is not None:
-        prog.addopt('jobconf',
-            'mapreduce.input.fileinputformat.split.minsize='+str(splitsize))
-        
-    prog.addopt('overwrite','yes')
-    prog.addopt('jobconf','mapred.output.compress=true')
-    
     gopts.save_params()
 
 if __name__ == '__main__':

@@ -14,12 +14,13 @@ import os
 import time
 import random
 import struct
+import uuid
 
 import numpy
 import numpy.linalg
 
 import util
-import uuid
+import base
 
 import dumbo
 import dumbo.backends.common
@@ -104,7 +105,7 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
     
 
 def runner(job):
-    mapper = "org.apache.hadoop.mapred.lib.IdentityMapper"
+    mapper = base.ID_MAPPER
     q2path = gopts.getstrkey('q2path')
     reducer = FullTSQRRed3(q2path)
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(100))])
