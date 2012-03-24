@@ -46,11 +46,11 @@ class SerialTSQR(base.MatrixHandler):
             return (util.flatten(self.first_key),i)
         else:
             return (self.first_key,i)
-    
-    def QR(self):
+
+    def QR(self, just_R):
         A = numpy.array(self.data)
-        return numpy.linalg.qr(A,'r')
-        
+        return numpy.linalg.qr(A,'r')        
+    
     def compress(self):
         """ Compute a QR factorization on the data accumulated so far. """
         if self.ncols is None:
@@ -140,8 +140,6 @@ class SerialTSQR(base.MatrixHandler):
             yield key, val
     
 def runner(job):
-    #niter = int(os.getenv('niter'))
-    
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
     
