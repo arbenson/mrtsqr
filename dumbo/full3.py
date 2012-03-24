@@ -4,7 +4,7 @@
 Austin R. Benson
 David F. Gleich
 
-copyright 2012
+copyright (c) 2012
 
 Full TSQR algorithm for MapReduce
 """
@@ -30,12 +30,6 @@ from dumbo.decor import primary, secondary
 
 # create the global options structure
 gopts = util.GlobalOptions()
-
-class DataFormatException(Exception):
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
 
 """
 FullTSQRRed3
