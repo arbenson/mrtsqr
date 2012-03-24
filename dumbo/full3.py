@@ -29,7 +29,7 @@ import dumbo.backends.common
 gopts = util.GlobalOptions()
 
 """
-FullTSQRRed3
+FullTSQRMap3
 ------------
 
 input: Q1 as <mapper_id, [row] + [row_id]>
@@ -37,7 +37,7 @@ input: Q2 comes attached as a text file, which is then parsed on the fly
 
 output: Q as <row_id, row>
 """
-class FullTSQRRed3(dumbo.backends.common.MapRedBase):
+class FullTSQRMap3(dumbo.backends.common.MapRedBase):
     def __init__(self, q2path):
         # TODO implement this
         self.Q1_data = {}
@@ -90,8 +90,8 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
                 yield self.row_keys[key][i], row.tolist()
 
     def __call__(self,data):
-        for key1, values in data:
-            for value in values:
+        for key1, matrix in data:        
+            for value in matrix:
                 key2 = value[-1]
                 value = value[0:-1]
                 self.collect(key1, key2, value)            
@@ -101,11 +101,10 @@ class FullTSQRRed3(dumbo.backends.common.MapRedBase):
     
 
 def runner(job):
-    mapper = base.ID_MAPPER
-    q2path = gopts.getstrkey('q2path')
-    reducer = FullTSQRRed3(q2path)
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(100))])
-
+    q2path = gopts.getstrkey('q2path')    
+    mapper = FullTSQRMap3(q2path)
+    reducer = base.ID_REDUCER
+    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 
 def starter(prog):
     # set the global opts

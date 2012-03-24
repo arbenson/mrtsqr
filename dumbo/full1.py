@@ -70,13 +70,15 @@ class FullTSQRMap1(base.MatrixHandler):
         self.Q = QR[0].tolist()
         self.R = QR[1].tolist()
 
+        for i, row in enumerate(self.R):
+            yield ("R_%s" % str(self.mapper_id), self.mapper_id), row
+
         for i, row in enumerate(self.Q):
             key = self.keys[i]
             row.append(key)
-            yield ("Q_%s" % str(self.mapper_id), self.mapper_id), row
+            self.Q[i] = row
 
-        for i, row in enumerate(self.R):
-            yield ("R_%s" % str(self.mapper_id), self.mapper_id), row
+        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), self.Q
 
     def __call__(self,data):
         deduced = False
