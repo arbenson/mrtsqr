@@ -146,14 +146,10 @@ def runner(job):
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
         if part.startswith('s'):
-            nreducers = int(part[1:])
-            # these tasks should just spray data and compress
-            job.additer(mapper = base.ID_MAPPER, reducer = base.ID_REDUCER,
-                opts=[('numreducetasks',str(nreducers))])
-            
+            base.add_splay_iteration(job, part)
         else:
             nreducers = int(part)
-            if i==0:
+            if i == 0:
                 mapper = SerialTSQR(blocksize=blocksize,isreducer=False,isfinal=False)
                 isfinal=False
             else:

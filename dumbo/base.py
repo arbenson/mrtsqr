@@ -85,3 +85,10 @@ def starter_helper(prog):
     prog.addopt('jobconf','mapred.output.compress=true')    
 
     return mat
+
+def add_splay_iteration(job, part):
+    nreducers = int(part[1:])
+    # these tasks should just spray data and compress
+    job.additer(mapper = ID_MAPPER, reducer = ID_REDUCER,
+                opts=[('numreducetasks',str(nreducers))])
+    job.additer(mapper, reducer, opts=[('numreducetasks',str(nreducers))])    
