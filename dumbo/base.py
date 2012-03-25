@@ -54,19 +54,7 @@ def starter_helper(prog):
     print "running starter!"
 
     mypath =  os.path.dirname(__file__)
-    print "my path: " + mypath
-    
-    mat = prog.delopt('mat')
-    if not mat: return None
-
-    # add numreps copies of the input
-    numreps = prog.delopt('repetition')
-    if not numreps:
-        numreps = 1
-    for i in range(int(numreps)):
-        prog.addopt('input',mat)
-    
-    prog.addopt('memlimit','2g')
+    print "my path: " + mypath    
 
     nonumpy = prog.delopt('use_system_numpy')
     if nonumpy is None:
@@ -82,9 +70,24 @@ def starter_helper(prog):
             'mapreduce.input.fileinputformat.split.minsize='+str(splitsize))
         
     prog.addopt('overwrite','yes')
-    prog.addopt('jobconf','mapred.output.compress=true')    
+    prog.addopt('jobconf','mapred.output.compress=true')
 
-    return mat
+    prog.addopt('memlimit','2g')    
+    
+    mat = prog.delopt('mat')
+
+    if mat:
+        # add numreps copies of the input
+        numreps = prog.delopt('repetition')
+        if not numreps:
+            numreps = 1
+        for i in range(int(numreps)):
+            prog.addopt('input',mat)
+    
+        return mat            
+    else:
+        return None
+
 
 def add_splay_iteration(job, part):
     nreducers = int(part[1:])
