@@ -65,6 +65,10 @@ class FullTSQRMap1(base.MatrixHandler):
     def close(self):
         self.counters['rows processed'] += self.nrows%50000
 
+        # if no data was passed to this task, we just return
+        if len(self.data) == 0:
+            return
+
         A = numpy.array(self.data)
         QR = numpy.linalg.qr(A)        
         self.Q = QR[0].tolist()
