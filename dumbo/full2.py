@@ -55,11 +55,11 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
         self.Q2 = None
 
     def add_R(self, key, value):
-        if key not in self.R_data:
-            print >> sys.stderr, 'adding key: %s'%(str(key))
-            self.R_data[key] = []
-        row = [float(val) for val in value]
-        self.R_data[key].append(row)
+        assert(key not in self.R_data)
+        data = []
+        for row in value:
+            data.append([float(val) for val in row])
+        self.R_data[key] = data
 
     def close_R(self):
         data = []
