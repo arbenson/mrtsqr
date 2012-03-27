@@ -53,7 +53,10 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
             if len(line) > 5:
                 ind1 = line.find("'")
                 ind2 = line.rfind("'")
-                key = line[ind1+1:ind2]           
+                key = line[ind1+1:ind2]
+                # lazy parsing: we only need the keys that we have
+                if key not in self.Q1_data:
+                    continue
                 line = line[ind2+3:]
                 line = line.strip()
                 line = line.split(',')
@@ -69,7 +72,6 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         row = [float(val) for val in value]
         if self.ncols is None:
             self.ncols = len(row)
-            self.parse_q2()
         
         if key1 not in self.Q1_data:
             self.Q1_data[key1] = []
@@ -80,6 +82,9 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.row_keys[key1].append(key2)
 
     def close(self):
+        # parse the q2 file we were given
+        self.parse_q2()
+        
         for key in self.Q1_data:
             assert(key in self.row_keys)
             assert(key in self.Q2_data)
