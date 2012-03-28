@@ -33,11 +33,7 @@ Copyright (c) 2012
 
 import os
 import sys
-
-def sched_usage(arg):
-    
-    print "map_schedule needs "
-    sys.exit(-1)
+import time
 
 try:
     in1 = sys.argv[1]
@@ -59,30 +55,40 @@ except:
     out = "%s_FULL" % (in1)
 
 
+times = []
 split = "-"*60
 
 out1 = "%s_1" % (out)
 cmd1 = "dumbo start full1.py -mat %s -output %s -use_system_numpy -nummaptasks %d \
-        -hadoop nersc -libjar feathers.jar" % (in1, out1, sched[0])
+-hadoop nersc -libjar feathers.jar" % (in1, out1, sched[0])
 print "running first phase..."
 print "(command is: %s)" % (cmd1)
 print split
+
+t0 = time.time()
 os.system(cmd1)
+times.append(time.time() - t0)
 
 in2 = "%s/R_*" % (out1)
 out2 = "%s_2" % (out)
 cmd2 = "dumbo start full2.py -mat %s -output %s -use_system_numpy -nummaptasks %d \
-        -hadoop nersc -libjar feathers.jar" % (in2, out2, sched[1])
+-hadoop nersc -libjar feathers.jar" % (in2, out2, sched[1])
 
 print "running second phase..."
 print "(command is: %s)" % (cmd2)
 print split
+
+t0 = time.time()
 os.system(cmd2)
+times.append(time.time() - t0)
 
 # Q2 file needs parsing before being distributed to phase 3
 Q2_file = "%s_Q2.txt" % (out2)
 cat_cmd = "dumbo cat %s/Q2 -hadoop nersc > %s" % (out2, Q2_file)
+
+t0 = time.time()
 os.system(cat_cmd)
+times.append(time.time() - t0)
 
 parse_cmd = "sh q2parse.sh %s" % (Q2_file)
 os.system(parse_cmd)
@@ -90,12 +96,21 @@ os.system(parse_cmd)
 in3 = "%s/Q_*" % (out1)
 out3 = "%s_3" % (out)
 cmd3 = "dumbo start full3.py -mat %s -output %s -q2path %s -use_system_numpy \
-        -nummaptasks %d -hadoop nersc -libjar feathers.jar" % (in3, out3, Q2_file, sched[2])
+-nummaptasks %d -hadoop nersc -libjar feathers.jar" % (in3, out3, Q2_file, sched[2])
 
 print "running third phase..."
 print "(command is: %s)" % (cmd3)
 print split
+
+t0 = time.time()
 os.system(cmd3)
+times.append(time.time() - t0)
 
 rm_cmd = "rm -rf %s" % (Q2_file)
+
+t0 = time.time()
 os.system(rm_cmd)
+times.append(time.time() - t0)
+
+print split
+print "times: %s" % (str(times))
