@@ -69,19 +69,15 @@ class FullTSQRMap1(base.MatrixHandler):
         if len(self.data) == 0:
             return
 
-        A = numpy.array(self.data)
-        QR = numpy.linalg.qr(A)        
-        self.Q = QR[0].tolist()
-        self.R = QR[1].tolist()
+        QR = numpy.linalg.qr(numpy.array(self.data))
+        Q = QR[0].tolist()
 
-        yield ("R_%s" % str(self.mapper_id), self.mapper_id), self.R
+        yield ("R_%s" % str(self.mapper_id), self.mapper_id), QR[1].tolist()
 
-        for i, row in enumerate(self.Q):
-            key = self.keys[i]
-            row.append(key)
-            self.Q[i] = row
+        for i, row in enumerate(Q):
+            Q[i].append(self.keys[i])
 
-        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), self.Q
+        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), Q
 
     def __call__(self,data):
         deduced = False
