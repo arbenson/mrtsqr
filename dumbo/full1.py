@@ -76,6 +76,8 @@ class FullTSQRMap1(base.MatrixHandler):
 
         for i, row in enumerate(Q):
             Q[i].append(self.keys[i])
+            if i%50000 == 0:
+                self.counters['Q rows processed'] += 50000
 
         yield ("Q_%s" % str(self.mapper_id), self.mapper_id), Q
 
