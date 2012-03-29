@@ -47,7 +47,7 @@ class SerialTSQR(base.MatrixHandler):
         else:
             return (self.first_key,i)
 
-    def QR(self, just_R):
+    def QR(self):
         A = numpy.array(self.data)
         return numpy.linalg.qr(A,'r')        
     
