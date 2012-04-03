@@ -54,7 +54,7 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
         self.key_order = []
         self.Q2 = None
 
-    def add_R(self, key, value):
+    def collect(self, key, value):
         assert(key not in self.R_data)
         data = []
         for row in value:
@@ -94,7 +94,7 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
     def __call__(self,data):
         for key,values in data:
                 for value in values:
-                    self.add_R(key, value)
+                    self.collect(key, value)
 
         for key, val in self.close_R():
             yield key, val

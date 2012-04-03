@@ -79,7 +79,8 @@ class FullTSQRMap1(base.MatrixHandler):
             if i%50000 == 0:
                 self.counters['Q rows processed'] += 50000
 
-        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), Q
+        flat_Q = util.flatten(Q)
+        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), struct.pack('d'*len(flat_Q), *flat_Q)
 
     def __call__(self,data):
         deduced = False
