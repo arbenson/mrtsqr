@@ -44,7 +44,7 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.row_keys = {}
         self.Q2_data = {}
         self.Q_final_out = {}
-        self.ncols = 10
+        self.ncols = 4
         self.q2path = q2path
 
     def parse_q2(self):
