@@ -20,7 +20,6 @@ import util
 import base
 
 import dumbo
-import dumbo.backends.common
 
 # create the global options structure
 gopts = util.GlobalOptions()
@@ -55,6 +54,7 @@ class SerialTSQR(base.MatrixHandler):
         """ Compute a QR factorization on the data accumulated so far. """
         if self.ncols is None:
             return
+        
         if len(self.data) < self.ncols:
             return
 
@@ -110,31 +110,12 @@ class SerialTSQR(base.MatrixHandler):
                 yield key, row
 
     def __call__(self,data):
-        deduced = False
-        if self.isreducer == False:
-            # map job
-            for key,value in data:
-                if isinstance(value, str):
-                    if not deduced:
-                        deduced = self.deduce_string_type(value)
-                    # handle conversion from string
-                    if self.unpacker is not None:
-                        value = self.unpacker.unpack(value)
-                    else:
-                        value = [float(p) for p in value.split()]
-                self.collect(key,value)
-                
+        if not self.isreducer:
+            self.collect_data(data)
         else:
-            # determine the data format
             for key,values in data:
-                for value in values:
-                    if not deduced:
-                        deduced = self.deduce_string_type(value)
-                    if self.unpacker is not None:
-                        val = self.unpacker.unpack(value)
-                        self.collect(key,val)
-                    else:
-                        self.collect(key,value)
+                self.collect_data(values, key)
+
         # finally, output data
         for key,val in self.close():
             yield key, val
@@ -157,8 +138,7 @@ def runner(job):
                 isfinal=True
             job.additer(mapper=mapper,
                         reducer=SerialTSQR(blocksize=blocksize,isreducer=True,isfinal=isfinal),
-                        opts=[('numreducetasks',str(nreducers))])
-    
+                        opts=[('numreducetasks',str(nreducers))])    
 
 def starter(prog):
     # set the global opts    
