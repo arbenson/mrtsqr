@@ -28,6 +28,30 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.ncols = None
         self.unpacker = None
+        self.deduced = False
+
+    def collect(self, key, value):
+        pass
+
+    def collect_data_instance(self, key, value):
+        if isinstance(value, str):
+            if not self.deduced:
+                self.deduced = self.deduce_string_type(value)
+                # handle conversion from string
+            if self.unpacker is not None:
+                value = self.unpacker.unpack(value)
+            else:
+                value = [float(p) for p in value.split()]
+        self.collect(key,value)
+        
+
+    def collect_data(self, data, key=None):
+        if key == None:
+            for key,value in data:
+                self.collect_data_instance(key, value)
+        else:
+            for value in data:
+                self.collect_data_instance(key, value)
 
     def deduce_string_type(self, val):
         # first check for TypedBytes list/vector
