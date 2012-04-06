@@ -41,7 +41,7 @@ Output:
 @opt("getpath", "yes")
 class FullTSQRMap1(base.MatrixHandler):
     def __init__(self):
-        base.MatrixHandler.__init__(self)        
+        base.MatrixHandler.__init__(self)
         self.nrows = 0
         self.keys = []
         self.data = []
@@ -83,20 +83,7 @@ class FullTSQRMap1(base.MatrixHandler):
         yield ("Q_%s" % str(self.mapper_id), self.mapper_id), struct.pack('d'*len(flat_Q), *flat_Q)
 
     def __call__(self,data):
-        deduced = False
-        # map job
-        for key,value in data:
-            if isinstance(value, str):
-                if not deduced:
-                    deduced = self.deduce_string_type(value)
-                # handle conversion from string
-                if self.unpacker is not None:
-                    value = self.unpacker.unpack(value)
-                else:
-                    value = [float(p) for p in value.split()]
-            self.collect(key,value)
-
-        # finally, output data
+        self.collect_data(data)
         for key,val in self.close():
             yield key, val
 
