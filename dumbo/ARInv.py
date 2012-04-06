@@ -24,15 +24,14 @@ import dumbo
 gopts = util.GlobalOptions()
 
 class ARInv(base.MatrixHandler):
-    def __init__(self,blocksize=3,ncols=10,rpath='r.txt'):
+    def __init__(self,blocksize=3,rpath='r.txt'):
+        base.MatrixHandler.__init__(self)        
         self.blocksize=blocksize
         self.nrows = 0
-        self.data = []
-        self.ncols = ncols
         self.row = None
-        self.parseR(rpath)
+        self.data = []
         self.keys = []
-
+        self.parseR(rpath)
 
     def parseR(self, rpath):
         f = open(rpath, 'r')
@@ -49,7 +48,6 @@ class ARInv(base.MatrixHandler):
                 data.append(row)                   
         R = numpy.mat(data)
         self.RPinv = numpy.linalg.pinv(R)
-
             
     def compress(self):        
         self.counters['AR^{-1} Computations'] += 1
@@ -78,6 +76,9 @@ class ARInv(base.MatrixHandler):
         self.keys = []
     
     def collect(self,key,value):
+        if self.ncols == None:
+            self.ncols = len(value)
+        
         if not len(value) == self.ncols:
             return
 
@@ -93,39 +94,26 @@ class ARInv(base.MatrixHandler):
         return len(self.data)>self.blocksize*self.ncols
 
     def __call__(self,data):
-        deduced = False        
-        # map job
         for key,value in data:
-            if isinstance(value, str):
-                if not deduced:
-                    deduced = self.deduce_string_type(value)
-                # handle conversion from string
-                if self.unpacker is not None:
-                    value = self.unpacker.unpack(value)
-                else:
-                    value = [float(p) for p in value.split()]
-            self.collect(key,value)
+            self.collect_data_instance(key, value)
+
             # if we accumulated enough rows, output some data
             if self.buffer_full():
                 for key, val in self.compress():
                     yield key, val
                     
-        # finally, output data
+        # output data the end of the data
         for key, val in self.compress():
             yield key, val
 
     
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
-    schedule = gopts.getstrkey('reduce_schedule')
-    ncols = gopts.getintkey('ncols')
-    if ncols <= 0:
-       sys.exit('ncols must be a positive integer')
-    rpath = gopts.getstrkey('rpath2')
+    rpath = gopts.getstrkey('rpath')
 
-    mapper = ARInv(blocksize=blocksize,ncols=ncols,rpath=rpath)
+    mapper = ARInv(blocksize=blocksize,rpath=rpath)
     reducer = base.ID_REDUCER
-    job.additer(mapper, reducer, [('numreducetasks',str(int(0)))])
+    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])    
 
 def starter(prog):
     gopts.prog = prog
@@ -136,9 +124,8 @@ def starter(prog):
     rpath = prog.delopt('rpath')
     if not rpath:
         return "'rpath' not specified"
-    prog.addopt('file',os.path.join(mypath,rpath))    
-    gopts.getstrkey('rpath2','r.txt')
-
+    prog.addopt('file', os.path.join(os.path.dirname(__file__), rpath))    
+    gopts.getstrkey('rpath', rpath)
 
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
@@ -147,7 +134,6 @@ def starter(prog):
     
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
-    gopts.getintkey('ncols', -1)
     
     gopts.save_params()
 
