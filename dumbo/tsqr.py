@@ -36,7 +36,6 @@ class SerialTSQR(base.MatrixHandler):
             raise Error("Unkonwn keytype %s"%(keytype))
         self.first_key = None
         self.isreducer=isreducer
-        self.nrows = 0
         self.data = []
         self.isfinal = isfinal
     

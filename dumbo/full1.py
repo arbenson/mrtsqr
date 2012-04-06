@@ -42,7 +42,6 @@ Output:
 class FullTSQRMap1(base.MatrixHandler):
     def __init__(self):
         base.MatrixHandler.__init__(self)
-        self.nrows = 0
         self.keys = []
         self.data = []
         self.mapper_id = uuid.uuid1().hex

@@ -27,7 +27,6 @@ class ARInv(base.MatrixHandler):
     def __init__(self,blocksize=3,rpath='r.txt'):
         base.MatrixHandler.__init__(self)        
         self.blocksize=blocksize
-        self.nrows = 0
         self.row = None
         self.data = []
         self.keys = []

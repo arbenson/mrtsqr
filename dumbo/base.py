@@ -28,6 +28,7 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.ncols = None
         self.unpacker = None
+        self.nrows = 0
         self.deduced = False
 
     def collect(self, key, value):
