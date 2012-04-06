@@ -44,7 +44,7 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.row_keys = {}
         self.Q2_data = {}
         self.Q_final_out = {}
-        self.ncols = 4
+        self.ncols = 10
         self.q2path = q2path
 
     def parse_q2(self):
@@ -92,7 +92,8 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
             Q2 = numpy.mat(self.Q2_data[key])
             Q_out = Q1*Q2
             for i, row in enumerate(Q_out.getA()):
-                yield self.row_keys[key][i], row.tolist()
+                row = row.tolist()
+                yield self.row_keys[key][i], struct.pack('d'*len(row), *row)
 
     def __call__(self,data):
         for key1, matrix in data:
