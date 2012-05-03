@@ -37,12 +37,13 @@ import time
 
 try:
     in1 = sys.argv[1]
+    ncols = sys.argv[2]
 except:
-    print "usage: python run_full_tsqr.py input [schedule] [output]"
+    print "usage: python run_full_tsqr.py input ncols [schedule] [output]"
     sys.exit(-1)
 
 try:
-    sched = sys.argv[2]
+    sched = sys.argv[3]
     sched = [int(s) for s in sched.split(',')]
     sched[2]
     print "schedule: " + str(sched[0:3])
@@ -51,7 +52,7 @@ except:
     print "schedule: " + str(sched)    
 
 try:
-    out = sys.argv[3]
+    out = sys.argv[4]
 except:
     out = "%s_FULL" % (in1)
 
@@ -90,8 +91,8 @@ exec_cmd(parse_cmd)
 
 in3 = "%s/Q_*" % (out1)
 out3 = "%s_3" % (out)
-cmd3 = "dumbo start full3.py -mat %s -output %s -q2path %s -use_system_numpy \
--nummaptasks %d -hadoop nersc -libjar feathers.jar" % (in3, out3, Q2_file + ".out", sched[2])
+cmd3 = "dumbo start full3.py -mat %s -output %s -ncols %s -q2path %s -use_system_numpy \
+-nummaptasks %d -hadoop nersc -libjar feathers.jar" % (in3, out3, ncols, Q2_file + ".out", sched[2])
 
 print "running third phase..."
 exec_cmd(cmd3)

@@ -38,13 +38,13 @@ input: Q2 comes attached as a text file, which is then parsed on the fly
 output: Q as <row_id, row>
 """
 class FullTSQRMap3(dumbo.backends.common.MapRedBase):
-    def __init__(self,q2path='q2.txt'):
+    def __init__(self,q2path='q2.txt',ncols=10):
         # TODO implement this
         self.Q1_data = {}
         self.row_keys = {}
         self.Q2_data = {}
         self.Q_final_out = {}
-        self.ncols = 4
+        self.ncols = ncols
         self.q2path = q2path
 
     def parse_q2(self):
@@ -113,8 +113,9 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
     
 
 def runner(job):
-    q2path = gopts.getstrkey('q2path')    
-    mapper = FullTSQRMap3(q2path)
+    q2path = gopts.getstrkey('q2path')
+    ncols = gopts.getintkey('ncols')
+    mapper = FullTSQRMap3(q2path,ncols)
     reducer = base.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 
@@ -132,6 +133,7 @@ def starter(prog):
         prog.addopt('output','%s-qrr%s'%(matname,matext))
     
     gopts.getstrkey('reduce_schedule','1')
+    gopts.getintkey('ncols',10)
 
     q2path = prog.delopt('q2path')
     if not q2path:
