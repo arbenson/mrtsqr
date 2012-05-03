@@ -12,7 +12,6 @@ Full TSQR algorithm for MapReduce
 import sys
 import os
 import time
-import random
 import struct
 import uuid
 
@@ -77,8 +76,8 @@ class FullTSQRMap1(base.MatrixHandler):
             Q[i].append(self.keys[i])
             if i%50000 == 0:
                 self.counters['Q rows processed'] += 50000
-
-        flat_Q = util.flatten(Q)
+        
+        flat_Q = [entry for row in Q for entry in row]
         yield ("Q_%s" % str(self.mapper_id), self.mapper_id), struct.pack('d'*len(flat_Q), *flat_Q)
 
     def __call__(self,data):
