@@ -12,15 +12,14 @@ Full TSQR algorithm for MapReduce
 import sys
 import os
 import time
-import random
-import struct
-import uuid
 
 import numpy
 import numpy.linalg
 
 import util
 import base
+
+import struct
 
 import dumbo
 import dumbo.backends.common
@@ -79,17 +78,16 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
 
         ind = 0
         key_ind = 0
-        key = self.key_order[key_ind]
         local_Q = []
         for row in self.Q2:
             local_Q.append(row)
             ind += 1
             if (ind == rows_to_read):
-                yield ("Q2", self.key_order[key_ind]), local_Q
-                key_ind += 1                
-                local_Q = []
-                ind = 0
-
+               flat_Q = [entry for row in local_Q for entry in row]
+               yield ("Q2", self.key_order[key_ind]), flat_Q
+               key_ind += 1
+               local_Q = []
+               ind = 0
 
     def __call__(self,data):
         for key,values in data:
@@ -100,7 +98,6 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
             yield key, val
         for key, val in self.close_Q():
             yield key, val
-    
 
 def runner(job):
     mapper = base.ID_MAPPER
@@ -122,7 +119,7 @@ def starter(prog):
     
     gopts.getstrkey('reduce_schedule','1')
     
-    gopts.save_params()    
+    gopts.save_params()
 
 if __name__ == '__main__':
     dumbo.main(runner, starter)
