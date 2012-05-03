@@ -56,9 +56,11 @@ times = []
 split = "-"*60
 
 def tsqr_arinv_pipeline(in1, out):
+    blocksize = 100
+    
     out1 = "%s_qrr" % (out)
-    cmd1 = "dumbo start tsqr.py -mat %s -blocksize 5 -output %s -use_system_numpy -nummaptasks %d \
-    -reduce_schedule 138,1 -hadoop nersc" % (in1, out1, sched[0])
+    cmd1 = "dumbo start tsqr.py -mat %s -blocksize %d -output %s -use_system_numpy \
+    -reduce_schedule 138,1 -hadoop nersc" % (in1, blocksize, out1)
     print "running tsqr..."
     print "(command is: %s)" % (cmd1)
     print split
@@ -79,8 +81,8 @@ def tsqr_arinv_pipeline(in1, out):
     os.system(parse_cmd)
 
     out2 = "%s_Q" % (out)
-    cmd2 = "dumbo start ARInv.py -mat %s -output %s -rpath %s -use_system_numpy -nummaptasks %d \
-    -hadoop nersc" % (in1, out2, R_file, sched[1])
+    cmd2 = "dumbo start ARInv.py -mat %s -output %s -rpath %s -blocksize %d -use_system_numpy \
+    -hadoop nersc" % (in1, out2, R_file, blocksize)
 
     print "running arinv..."
     print "(command is: %s)" % (cmd2)
