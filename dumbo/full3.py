@@ -38,32 +38,32 @@ input: Q2 comes attached as a text file, which is then parsed on the fly
 output: Q as <row_id, row>
 """
 class FullTSQRMap3(dumbo.backends.common.MapRedBase):
-    def __init__(self, q2path):
+    def __init__(self,q2path='q2.txt'):
         # TODO implement this
         self.Q1_data = {}
         self.row_keys = {}
         self.Q2_data = {}
         self.Q_final_out = {}
-        self.ncols = 10
+        self.ncols = 4
         self.q2path = q2path
 
     def parse_q2(self):
         f = open(self.q2path)
         for line in f:
             if len(line) > 5:
-                ind1 = line.find("'")
-                ind2 = line.rfind("'")
+                ind1 = line.find('(')
+                ind2 = line.rfind(')')
                 key = line[ind1+1:ind2]
                 # lazy parsing: we only need the keys that we have
                 if key not in self.Q1_data:
                     continue
                 line = line[ind2+3:]
-                line = line.strip()
+                line = line.lstrip('[').rstrip().rstrip(']')
                 line = line.split(',')
                 line = [float(v) for v in line]
                 line = numpy.array(line)
                 mat = numpy.reshape(line, (self.ncols, self.ncols))
-                self.Q2_data[key] = mat        
+                self.Q2_data[key] = mat
 
     # key1: unique mapper_id
     # key2: row identifier
@@ -106,7 +106,7 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
             for value in mat.tolist():
                 key2 = value[-1]
                 value = value[0:-1]
-                self.collect(key1, key2, value)            
+                self.collect(key1, key2, value)
 
         for key, val in self.close():
             yield key, val
@@ -141,7 +141,6 @@ def starter(prog):
     gopts.getstrkey('q2path', q2path)    
     
     gopts.save_params()
-
 
 if __name__ == '__main__':
     dumbo.main(runner, starter)
