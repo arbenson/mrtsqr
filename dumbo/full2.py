@@ -48,7 +48,7 @@ Q2 matrix corresponding to that mapper_id
 """
 @opt("getpath", "yes")
 class FullTSQRRed2(dumbo.backends.common.MapRedBase):
-    def __init__(self, compute_svd=True):
+    def __init__(self, compute_svd=False):
         self.R_data = {}
         self.key_order = []
         self.Q2 = None
@@ -109,8 +109,9 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
             yield key, val
 
 def runner(job):
+    compute_svd = gopts.getintkey('svd')
     mapper = base.ID_MAPPER
-    reducer = FullTSQRRed2()
+    reducer = FullTSQRRed2(compute_svd)
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(1))])
 
 def starter(prog):
@@ -121,12 +122,11 @@ def starter(prog):
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)
-    # TODO: change default output
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output','%s-qrr%s'%(matname,matext))
+        prog.addopt('output','%s-full-tsqr-2%s'%(matname,matext))
     
-    gopts.getstrkey('reduce_schedule','1')
+    gopts.getintkey('svd', 0)
     
     gopts.save_params()
 

@@ -130,9 +130,8 @@ def starter(prog):
     # TODO: change default output
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output','%s-qrr%s'%(matname,matext))
+        prog.addopt('output','%s-full-tsqr-3%s'%(matname,matext))
     
-    gopts.getstrkey('reduce_schedule','1')
     gopts.getintkey('ncols',10)
 
     q2path = prog.delopt('q2path')
@@ -140,7 +139,7 @@ def starter(prog):
         return "'q2path' not specified"
     prog.addopt('file', os.path.join(os.path.dirname(__file__), q2path))
 
-    gopts.getstrkey('q2path', q2path)    
+    gopts.getstrkey('q2path', q2path)
     
     gopts.save_params()
 

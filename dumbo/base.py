@@ -81,11 +81,6 @@ def starter_helper(prog):
     mypath =  os.path.dirname(__file__)
     print "my path: " + mypath    
 
-    nonumpy = prog.delopt('use_system_numpy')
-    if nonumpy is None:
-        print >> sys.stderr, 'adding numpy egg: %s'%(str(nonumpy))
-        prog.addopt('libegg', 'numpy')
-
     prog.addopt('file',os.path.join(mypath,'util.py'))
     prog.addopt('file',os.path.join(mypath,'base.py'))
 

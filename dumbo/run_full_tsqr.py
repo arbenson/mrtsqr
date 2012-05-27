@@ -71,15 +71,15 @@ def exec_cmd(cmd):
     
 
 out1 = "%s_1" % (out)
-cmd1 = "dumbo start full1.py -mat %s -output %s -use_system_numpy -nummaptasks %d \
+cmd1 = "dumbo start full1.py -mat %s -output %s -nummaptasks %d \
 -hadoop icme-hadoop1 -libjar feathers.jar" % (in1, out1, sched[0])
 print "running first phase..."
 exec_cmd(cmd1)
 
 in2 = "%s/R_*" % (out1)
 out2 = "%s_2" % (out)
-cmd2 = "dumbo start full2.py -mat %s -output %s -use_system_numpy -nummaptasks %d \
--hadoop icme-hadoop1 -libjar feathers.jar" % (in2, out2, sched[1])
+cmd2 = "dumbo start full2.py -mat %s -output %s -svd %d -nummaptasks %d \
+-hadoop icme-hadoop1 -libjar feathers.jar" % (in2, out2, svd_opt, sched[1])
 
 print "running second phase..."
 exec_cmd(cmd2)
@@ -94,7 +94,7 @@ exec_cmd(parse_cmd)
 
 in3 = "%s/Q_*" % (out1)
 out3 = "%s_3" % (out)
-cmd3 = "dumbo start full3.py -mat %s -output %s -ncols %s -q2path %s -use_system_numpy \
+cmd3 = "dumbo start full3.py -mat %s -output %s -ncols %s -q2path %s \
 -nummaptasks %d -hadoop icme-hadoop1 -libjar feathers.jar" % (in3, out3, ncols, Q2_file + ".out", sched[2])
 
 print "running third phase..."

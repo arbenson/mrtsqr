@@ -99,12 +99,9 @@ def starter(prog):
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)
-    # TODO: change default output
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output','%s-qrr%s'%(matname,matext))
-    
-    gopts.getstrkey('reduce_schedule','1')
+        prog.addopt('output','%s-full-tsqr2%s'%(matname,matext))
     
     gopts.save_params()
 
