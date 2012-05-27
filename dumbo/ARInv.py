@@ -20,91 +20,24 @@ import base
 
 import dumbo
 
+import TSMatMul
+
 # create the global options structure
 gopts = util.GlobalOptions()
 
-class ARInv(base.MatrixHandler):
-    def __init__(self,blocksize=3,rpath='r.txt'):
-        base.MatrixHandler.__init__(self)        
-        self.blocksize=blocksize
-        self.row = None
-        self.data = []
-        self.keys = []
-        self.parseR(rpath)
-
-    def parseR(self, rpath):
-        f = open(rpath, 'r')
+class ARInv(TSMatMul.TSMatMul):
+    # Computing ARInv is the same as TSMatMul, except that our multiplier is
+    # the inverse of the parsed matrix.
+    def parseM(self, rpath):
+        f = open(mpath, 'r')
         data = []
         for line in f:
-            row = line.strip(' ')
-            row = row.split(',')
-            row = row[1:]
-            for i, entry in enumerate(row):
-                row[i] = entry.strip(' ')
-            if len(row) > 0:
-                row[-1] = row[-1].strip('\n')
-                row = [float(v) for v in row]
-                data.append(row)                   
-        R = numpy.mat(data)
-        self.RPinv = numpy.linalg.pinv(R)
-            
-    def compress(self):        
-        self.counters['AR^{-1} Computations'] += 1
-        # compress the data
-        
-        # Compute AR^{-1} on the data accumulated so far
-        if self.ncols is None:
-            return
-        
-        t0 = time.time()
-        A = numpy.mat(self.data)
-        if A.size == 0:
-            return
-
-        ARInv = numpy.dot(A, self.RPinv)
-        
-        dt = time.time() - t0
-        self.counters['numpy time (millisecs)'] += int(1000*dt)
-
-        # reset data and add flushed update to local copy
-        self.data = []
-        for i, row in enumerate(ARInv.getA()):
-            yield self.keys[i], struct.pack('d'*len(row), *row)
-
-        # clear the keys
-        self.keys = []
-    
-    def collect(self,key,value):
-        if self.ncols == None:
-            self.ncols = len(value)
-        
-        if not len(value) == self.ncols:
-            return
-
-        self.keys.append(key)        
-        self.data.append(value)
-        self.nrows += 1
-        
-        # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
-            self.counters['rows processed'] += 50000
-
-    def buffer_full(self):
-        return len(self.data)>self.blocksize*self.ncols
-
-    def __call__(self,data):
-        for key,value in data:
-            self.collect_data_instance(key, value)
-
-            # if we accumulated enough rows, output some data
-            if self.buffer_full():
-                for key, val in self.compress():
-                    yield key, val
-                    
-        # output data the end of the data
-        for key, val in self.compress():
-            yield key, val
-
+            line = line.strip()
+            line = line.split()
+            line = [float(val) for val in line]
+            data.append(line)
+        f.close()
+        self.small = numpy.linalg.pinv(numpy.mat(data))
     
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
