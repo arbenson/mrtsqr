@@ -32,9 +32,9 @@ David F. Gleich
 Copyright (c) 2012
 """
 
-import os
 import sys
 import time
+import subprocess
 
 in1 = sys.argv[1]
 
@@ -66,7 +66,7 @@ def tsqr_arinv_pipeline(in1, out):
     print split
 
     t0 = time.time()
-    os.system(cmd1)
+    subprocess.call(cmd1, shell=True)
     times.append(time.time() - t0)
 
     # parsing
@@ -74,11 +74,11 @@ def tsqr_arinv_pipeline(in1, out):
     cat_cmd = "dumbo cat %s/part-00000 -hadoop nersc > %s" % (out1, R_file)
 
     t0 = time.time()
-    os.system(cat_cmd)
+    subprocess.call(cat_cmd, shell=True)
     times.append(time.time() - t0)
 
     parse_cmd = "sh q2parse.sh %s" % (R_file)
-    os.system(parse_cmd)
+    subprocess.call(parse_cmd, shell=True)
 
     out2 = "%s_Q" % (out)
     cmd2 = "dumbo start ARInv.py -mat %s -output %s -rpath %s -blocksize %d -use_system_numpy \
@@ -89,7 +89,7 @@ def tsqr_arinv_pipeline(in1, out):
     print split
 
     t0 = time.time()
-    os.system(cmd2)
+    subprocess.call(cmd2, shell=True)
     times.append(time.time() - t0)
 
 tsqr_arinv_pipeline(in1, out)

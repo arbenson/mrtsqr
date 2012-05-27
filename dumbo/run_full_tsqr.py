@@ -28,19 +28,24 @@ Austin R. Benson arbenson@gmail.com
 Copyright (c) 2012
 """
 
-import os
 import sys
 import time
+import subprocess
 
 try:
     in1 = sys.argv[1]
     ncols = sys.argv[2]
 except:
-    print "usage: python run_full_tsqr.py input ncols [schedule] [output]"
+    print "usage: python run_full_tsqr.py input ncols [svd_opt] [schedule] [output]"
     sys.exit(-1)
 
 try:
-    sched = sys.argv[3]
+    svd_opt = int(sys.argv[3])
+except:
+    svd_opt = 0    
+
+try:
+    sched = sys.argv[4]
     sched = [int(s) for s in sched.split(',')]
     sched[2]
     print "schedule: " + str(sched[0:3])
@@ -49,7 +54,7 @@ except:
     print "schedule: " + str(sched)    
 
 try:
-    out = sys.argv[4]
+    out = sys.argv[5]
 except:
     out = "%s_FULL" % (in1)
 
@@ -60,8 +65,9 @@ def exec_cmd(cmd):
   print "(command is: %s)" % (cmd)
   print split
   t0 = time.time()
-  os.system(cmd)
-  times.append(time.time() - t0)    
+  retcode = subprocess.call(cmd,shell=True)
+  times.append(time.time() - t0)
+  return retcode
     
 
 out1 = "%s_1" % (out)
