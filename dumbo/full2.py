@@ -48,10 +48,11 @@ Q2 matrix corresponding to that mapper_id
 """
 @opt("getpath", "yes")
 class FullTSQRRed2(dumbo.backends.common.MapRedBase):
-    def __init__(self):
+    def __init__(self, compute_svd=True):
         self.R_data = {}
         self.key_order = []
         self.Q2 = None
+        self.compute_svd = compute_svd
 
     def collect(self, key, value):
         assert(key not in self.R_data)
@@ -71,6 +72,14 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
         self.R_final = QR[1].tolist()
         for i, row in enumerate(self.R_final):
             yield ("R_final", i), row
+        if self.compute_svd:
+            U, S, Vt = numpy.linalg.svd(self.R_final)
+            for i, row in enumerate(U):
+                yield ("U", i), row
+            for i, row in enumerate(S):
+                yield ("Sigma", i), row
+            for i, row in enumerate(Vt):
+                yield ("Vt", i), row
 
     def close_Q(self):
         num_rows = len(self.Q2)
