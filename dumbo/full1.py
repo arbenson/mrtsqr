@@ -52,7 +52,8 @@ class FullTSQRMap1(base.MatrixHandler):
         else:
             assert(len(value) == self.ncols)
 
-        self.keys.append(key)
+        # TODO(arbenson): generalize to handle non-integer keys
+        self.keys.append(int(key))
         self.data.append(value)
         self.nrows += 1
         

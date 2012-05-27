@@ -22,10 +22,7 @@ output_name is used to derive the name of the outpute directories.
 The outputs of the three jobs will be stored in output_name_1,
 output_name_2, and output_name_3.
 
-This script relies on the script q2parse.sh, which is used for a preliminary
-parsing of the output of phase 2.  q2parse.sh was designed to handle the
-output on NERSC's Magellan cluster.  It has not been tested on other
-Hadoop clusters.
+This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 
 Austin R. Benson arbenson@gmail.com
 Copyright (c) 2012
@@ -69,14 +66,14 @@ def exec_cmd(cmd):
 
 out1 = "%s_1" % (out)
 cmd1 = "dumbo start full1.py -mat %s -output %s -use_system_numpy -nummaptasks %d \
--hadoop nersc -libjar feathers.jar" % (in1, out1, sched[0])
+-hadoop icme-hadoop1 -libjar feathers.jar" % (in1, out1, sched[0])
 print "running first phase..."
 exec_cmd(cmd1)
 
 in2 = "%s/R_*" % (out1)
 out2 = "%s_2" % (out)
 cmd2 = "dumbo start full2.py -mat %s -output %s -use_system_numpy -nummaptasks %d \
--hadoop nersc -libjar feathers.jar" % (in2, out2, sched[1])
+-hadoop icme-hadoop1 -libjar feathers.jar" % (in2, out2, sched[1])
 
 print "running second phase..."
 exec_cmd(cmd2)
@@ -92,7 +89,7 @@ exec_cmd(parse_cmd)
 in3 = "%s/Q_*" % (out1)
 out3 = "%s_3" % (out)
 cmd3 = "dumbo start full3.py -mat %s -output %s -ncols %s -q2path %s -use_system_numpy \
--nummaptasks %d -hadoop nersc -libjar feathers.jar" % (in3, out3, ncols, Q2_file + ".out", sched[2])
+-nummaptasks %d -hadoop icme-hadoop1 -libjar feathers.jar" % (in3, out3, ncols, Q2_file + ".out", sched[2])
 
 print "running third phase..."
 exec_cmd(cmd3)

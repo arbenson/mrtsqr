@@ -97,7 +97,7 @@ def starter_helper(prog):
     prog.addopt('overwrite','yes')
     prog.addopt('jobconf','mapred.output.compress=true')
 
-    prog.addopt('memlimit','2g')    
+    prog.addopt('memlimit','8g')    
     
     mat = prog.delopt('mat')
 
