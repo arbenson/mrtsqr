@@ -127,7 +127,6 @@ def starter(prog):
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)
-    # TODO: change default output
     output = prog.getopt('output')
     if not output:
         prog.addopt('output','%s-full-tsqr-3%s'%(matname,matext))
