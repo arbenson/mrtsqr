@@ -32,12 +32,15 @@ if __name__ == '__main__':
         key = key_class()
         value = value_class()
 
-        #reader.sync(4042)
         position = reader.getPosition()
         while reader.next(key, value):
-            print '*' if reader.syncSeen() else ' ',
-            #print '[%6s] %6s %6s' % (position, key.toString(), value.toString())
-            print '(%s) %s' % (key.toString(), value.toString())            
+            # sometimes this grabs newlines in the middle that we do not want
+            # TODO(arbenson): make this cleaner
+            val_list = value.toString().split('\n')
+            val_str = ''
+            for val in val_list:
+                val_str += val
+            print '(%s) %s' % (key.toString(), val_str)
             position = reader.getPosition()
 
         reader.close()

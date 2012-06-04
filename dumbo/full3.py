@@ -64,6 +64,7 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
                 line = numpy.array(line)
                 mat = numpy.reshape(line, (self.ncols, self.ncols))
                 self.Q2_data[key] = mat
+        f.close()
 
     # key1: unique mapper_id
     # key2: row identifier

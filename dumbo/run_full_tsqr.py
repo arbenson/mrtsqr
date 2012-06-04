@@ -36,10 +36,16 @@ try:
     in1 = sys.argv[1]
     ncols = sys.argv[2]
 except:
-    print "usage: python run_full_tsqr.py input ncols [svd_opt] [schedule] [output]"
+    print 'usage: python run_full_tsqr.py input ncols [svd_opt] [schedule] [output]'
     sys.exit(-1)
 
 try:
+    """
+    SVD option
+    0: no SVD
+    1: compute the singular values (R = USVt)
+    2: compute the singular vectors as well as QR
+    """
     svd_opt = int(sys.argv[3])
 except:
     svd_opt = 0    
@@ -48,60 +54,89 @@ try:
     sched = sys.argv[4]
     sched = [int(s) for s in sched.split(',')]
     sched[2]
-    print "schedule: " + str(sched[0:3])
+    print 'schedule: ' + str(sched[0:3])
 except:
     sched = [100,100,100]
-    print "schedule: " + str(sched)    
+    print 'schedule: ' + str(sched)    
 
 try:
     out = sys.argv[5]
 except:
-    out = "%s_FULL" % (in1)
+    # TODO(arbenson): make sure in1 is clean
+    out = in1 + '_FULL'
 
 times = []
-split = "-"*60
+split = '-'*60
 
 def exec_cmd(cmd):
-  print "(command is: %s)" % (cmd)
+  print '(command is: %s)' % (cmd)
   print split
   t0 = time.time()
   retcode = subprocess.call(cmd,shell=True)
   times.append(time.time() - t0)
   return retcode
-    
 
-out1 = "%s_1" % (out)
-cmd1 = "dumbo start full1.py -mat %s -output %s -nummaptasks %d \
--hadoop icme-hadoop1 -libjar feathers.jar" % (in1, out1, sched[0])
-print "running first phase..."
-exec_cmd(cmd1)
+def parse_seq_file(inp):
+    parse_cmd = 'python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s' % (inp, inp + '.out')
+    exec_cmd(parse_cmd)
 
-in2 = "%s/R_*" % (out1)
-out2 = "%s_2" % (out)
-cmd2 = "dumbo start full2.py -mat %s -output %s -svd %d -nummaptasks %d \
--hadoop icme-hadoop1 -libjar feathers.jar" % (in2, out2, svd_opt, sched[1])
+def run_dumbo(script, hadoop='', opts=[]):
+    cmd = 'dumbo start ' + script
+    if hadoop != '':
+        cmd += ' -hadoop '
+        cmd += hadoop
+    for opt in opts:
+        cmd += ' '
+        cmd += opt
 
-print "running second phase..."
-exec_cmd(cmd2)
+    exec_cmd(cmd)
+
+
+out1 = out + '_1'
+run_dumbo('full1.py', 'icme-hadoop1', ['-mat ' + in1, '-output ' + out1,
+                                       '-nummaptasks %d' % sched[0],
+                                       '-libjar feathers.jar'])
+
+out2 = out + '_2'
+run_dumbo('full2.py', 'icme-hadoop1', ['-mat ' + out1 + '/R_*', '-output ' + out2,
+                                       '-svd ' + str(svd_opt),
+                                       '-nummaptasks %d' % sched[1],
+                                       '-libjar feathers.jar'])
 
 # Q2 file needs parsing before being distributed to phase 3
-Q2_file = "%s_Q2.txt" % (out2)
-copy_cmd = "hadoop fs -copyToLocal %s/Q2/part-00000 %s" % (out2, Q2_file)
-exec_cmd(copy_cmd)
+Q2_file = out2 + '_Q2.txt'
 
-parse_cmd = "python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s" % (Q2_file, Q2_file + ".out")
-exec_cmd(parse_cmd)
-
-in3 = "%s/Q_*" % (out1)
-out3 = "%s_3" % (out)
-cmd3 = "dumbo start full3.py -mat %s -output %s -ncols %s -q2path %s \
--nummaptasks %d -hadoop icme-hadoop1 -libjar feathers.jar" % (in3, out3, ncols, Q2_file + ".out", sched[2])
-
-print "running third phase..."
-exec_cmd(cmd3)
-
-rm_cmd = "rm -rf %s %s" % (Q2_file, Q2_file + ".out")
+rm_cmd = 'rm -rf %s %s' % (Q2_file, Q2_file + '.out')
 exec_cmd(rm_cmd)
 
-print split
-print "times: %s" % (str(times))
+copy_cmd = 'hadoop fs -copyToLocal %s/Q2/part-00000 %s' % (out2, Q2_file)
+exec_cmd(copy_cmd)
+
+parse_seq_file(Q2_file)
+
+in3 = out1 + '/Q_*'
+run_dumbo('full3.py', 'icme-hadoop1', ['-mat ' + in3, '-output ' + out + '_3',
+                                       '-ncols ' + str(ncols),
+                                       '-q2path ' + Q2_file + '.out',
+                                       '-nummaptasks %d' % sched[2],
+                                       '-libjar feathers.jar'])
+
+if svd_opt == 2:
+  small_U_file = out2 + '_U.txt'
+
+  rm_cmd = 'rm -rf %s %s' % (small_U_file, small_U_file + '.out')
+  exec_cmd(rm_cmd)
+
+  copy_cmd = 'hadoop fs -copyToLocal %s/U/part-00000 %s' % (out2, small_U_file)
+  exec_cmd(copy_cmd)
+
+  parse_seq_file(small_U_file)
+
+  # We need an addition TS matrix multiply to get the left singular vectors
+  out4 = out + '_4'
+
+  run_dumbo ('TSMatMul.py', 'icme-hadoop1', ['-mat ' + out + '_3', '-output ' + out4,
+                                             '-mpath ' + small_U_file + '.out',
+                                             '-nummaptasks %d' % sched[2]])
+
+print 'times: ' + str(times)

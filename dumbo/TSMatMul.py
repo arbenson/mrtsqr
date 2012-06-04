@@ -36,26 +36,30 @@ class TSMatMul(base.MatrixHandler):
         f = open(mpath, 'r')
         data = []
         for line in f:
-            line = line.strip()
-            line = line.split()
-            line = [float(val) for val in line]
-            data.append(line)
+            if len(line) > 5:
+                ind2 = line.rfind(')')
+                line = line[ind2+3:]
+                line = line.lstrip('[').rstrip().rstrip(']')
+                try:
+                    line2 = line.split(',')
+                    line2 = [float(v) for v in line2]
+                except:
+                    line2 = line.split()
+                    line2 = [float(v) for v in line2]
+                data.append(line2)
         f.close()
         self.small = numpy.mat(data)
 
     def compress(self):        
-        self.counters['MatMul compression'] += 1
         # Compute the matmul on the data accumulated so far
-        if self.ncols is None:
-            return
-        
-        t0 = time.time()
-        A = numpy.mat(self.data)
-        if A.size == 0:
+        if self.ncols is None or len(self.data) == 0:
             return
 
+        self.counters['MatMul compression'] += 1
+
+        t0 = time.time()
+        A = numpy.mat(self.data)
         out_mat = A*self.small
-        
         dt = time.time() - t0
         self.counters['numpy time (millisecs)'] += int(1000*dt)
 
@@ -74,7 +78,7 @@ class TSMatMul(base.MatrixHandler):
         if not len(value) == self.ncols:
             return
 
-        self.keys.append(key)        
+        self.keys.append(key)
         self.data.append(value)
         self.nrows += 1
         
@@ -83,7 +87,7 @@ class TSMatMul(base.MatrixHandler):
             self.counters['rows processed'] += 50000
 
     def buffer_full(self):
-        return len(self.data)>self.blocksize*self.ncols
+        return len(self.data) >= self.blocksize*self.ncols
 
     def __call__(self,data):
         for key,value in data:
