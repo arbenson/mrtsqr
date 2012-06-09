@@ -31,55 +31,38 @@ Copyright (c) 2012
 import sys
 import time
 import subprocess
+from optparse import OptionParser
 
-try:
-    in1 = sys.argv[1]
-    ncols = sys.argv[2]
-except:
-    print 'usage: python run_full_tsqr.py input ncols [svd_opt] [schedule] [output]'
-    sys.exit(-1)
-
-try:
-    """
-    SVD option
-    0: no SVD
-    1: compute the singular values (R = USVt)
-    2: compute the singular vectors as well as QR
-    """
-    svd_opt = int(sys.argv[3])
-except:
-    svd_opt = 0    
-
-try:
-    sched = sys.argv[4]
-    sched = [int(s) for s in sched.split(',')]
-    sched[2]
-    print 'schedule: ' + str(sched[0:3])
-except:
-    sched = [100,100,100]
-    print 'schedule: ' + str(sched)    
-
-try:
-    out = sys.argv[5]
-except:
-    # TODO(arbenson): make sure in1 is clean
-    out = in1 + '_FULL'
-
+verbose = True
 times = []
 split = '-'*60
 
+# print error messages and exit with failure
+def error(msg):
+  print msg
+  sys.exit(1)
+
+# simple wrapper around printing with verbose option
+def output(msg):
+  if verbose:
+    print msg
+
+# simple wrapper for executing command line programs
 def exec_cmd(cmd):
-  print '(command is: %s)' % (cmd)
-  print split
+  output('(command is: %s)' % (cmd))
+  output(split)
   t0 = time.time()
   retcode = subprocess.call(cmd,shell=True)
   times.append(time.time() - t0)
+  # TODO(arbenson): make it more obvious when something fails
   return retcode
 
+# simple wrapper for parsing a sequence file
 def parse_seq_file(inp):
     parse_cmd = 'python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s' % (inp, inp + '.out')
     exec_cmd(parse_cmd)
 
+# simple wrapper for running dumbo scripts with options provided as a list
 def run_dumbo(script, hadoop='', opts=[]):
     cmd = 'dumbo start ' + script
     if hadoop != '':
@@ -88,10 +71,65 @@ def run_dumbo(script, hadoop='', opts=[]):
     for opt in opts:
         cmd += ' '
         cmd += opt
-
     exec_cmd(cmd)
 
 
+# Parse command-line options
+#
+# TODO(arbenson): use argparse instead of optparse when icme-hadoop1 defaults
+# to python 2.7
+parser = OptionParser()
+parser.add_option('-i', '--input', dest='input', default='',
+                  help='input matrix')
+parser.add_option('-o', '--output', dest='out', default='',
+                  help='base string for output of Hadoop jobs')
+parser.add_option('-n', '--ncols', type='int', dest='ncols', default=0,
+                  help='number of columns in the matrix')
+parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
+                  help='comma separated list of number of map tasks to use for the three jobs'
+)
+# TODO(arbenson): add option that computes singular vectors but not the Q in
+# QR.  This will be the go-to option for computing the SVD of a
+# tall-and-skinny matrix.
+parser.add_option('-x', '--svd', type='int', dest='svd', default=0,
+                  help="""0: no SVD computed ;
+1: compute the singular values (R = USV^t) ;
+2: compute the singular vectors as well as QR
+"""
+)
+parser.add_option('-q', '--quiet', action='store_false', dest='verbose',
+                  default=True, help='turn off some statement printing')
+
+(options, args) = parser.parse_args()
+
+
+# Store options in the appropriate variables
+in1 = options.input
+if in1 == '':
+  error('no input matrix provided, use --input')
+
+out = options.out
+if out == '':
+  # TODO(arbenson): make sure in1 is clean
+  out = in1 + '_FULL'
+
+ncols = options.ncols
+if ncols == 0:
+  error('number of columns not provided, use --ncols')
+
+svd_opt = options.svd
+verbose = options.verbose
+
+sched = options.sched
+try:
+  sched = [int(s) for s in sched.split(',')]
+  sched[2]
+except:
+  error('invalid schedule provided')
+
+
+
+# Now run the MapReduce jobs
 out1 = out + '_1'
 run_dumbo('full1.py', 'icme-hadoop1', ['-mat ' + in1, '-output ' + out1,
                                        '-nummaptasks %d' % sched[0],
@@ -139,4 +177,4 @@ if svd_opt == 2:
                                              '-mpath ' + small_U_file + '.out',
                                              '-nummaptasks %d' % sched[2]])
 
-print 'times: ' + str(times)
+output('times: ' + str(times))
