@@ -309,22 +309,16 @@ class TSMatMul(MatrixHandler):
             yield key, val
 
 
+"""
+ARInv is just a thin wrapper around TSMatMul
+"""
 class ARInv(TSMatMul):
-    def __init__(self,blocksize=3,mpath='m.txt'):
-        TSMatMul.__init__(self, blocksize=blocksize, mpath=mpath)
+    def __init__(self,blocksize=3,rpath='m.txt'):
+        TSMatMul.__init__(self, blocksize=blocksize, mpath=rpath)
+        # Computing ARInv is the same as TSMatMul, except that our multiplier is
+        # the inverse of the parsed matrix.
+        self.small = numpy.linalg.pinv(self.small)
 
-    # Computing ARInv is the same as TSMatMul, except that our multiplier is
-    # the inverse of the parsed matrix.
-    def parseM(self, rpath):
-        f = open(mpath, 'r')
-        data = []
-        for line in f:
-            line = line.strip()
-            line = line.split()
-            line = [float(val) for val in line]
-            data.append(line)
-        f.close()
-        self.small = numpy.linalg.pinv(numpy.mat(data))
 
 class Cholesky(dumbo.backends.common.MapRedBase):
     def __init__(self,ncols=10):
