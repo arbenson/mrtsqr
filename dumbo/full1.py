@@ -26,7 +26,7 @@ def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-    mat = mrmc.starter_helper(prog)
+    mat = mrmc.starter_helper(prog, True)
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)

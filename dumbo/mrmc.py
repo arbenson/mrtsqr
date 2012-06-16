@@ -31,7 +31,7 @@ class DataFormatException(Exception):
     def __str__(self):
         return repr(self.value)
 
-def starter_helper(prog):
+def starter_helper(prog, use_full=False):
     print 'running starter!'
 
     mypath = os.path.dirname(__file__)
@@ -39,7 +39,8 @@ def starter_helper(prog):
 
     prog.addopt('file', os.path.join(mypath, 'util.py'))
     prog.addopt('file', os.path.join(mypath, 'mrmc.py'))
-    prog.addopt('file', os.path.join(mypath, 'full.py'))
+    if use_full:
+        prog.addopt('file', os.path.join(mypath, 'full.py'))
 
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
