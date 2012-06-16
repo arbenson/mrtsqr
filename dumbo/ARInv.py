@@ -7,50 +7,26 @@ ARInv.py
 Compute AR^{-1}
 """
 
-import sys
-import os
-import time
-import struct
-
-import numpy
-import numpy.linalg
-
-import util
-import base
-
+import mrmc
 import dumbo
-
-import TSMatMul
+import util
+import os
 
 # create the global options structure
 gopts = util.GlobalOptions()
-
-class ARInv(TSMatMul.TSMatMul):
-    # Computing ARInv is the same as TSMatMul, except that our multiplier is
-    # the inverse of the parsed matrix.
-    def parseM(self, rpath):
-        f = open(mpath, 'r')
-        data = []
-        for line in f:
-            line = line.strip()
-            line = line.split()
-            line = [float(val) for val in line]
-            data.append(line)
-        f.close()
-        self.small = numpy.linalg.pinv(numpy.mat(data))
     
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
     rpath = gopts.getstrkey('rpath')
 
     mapper = ARInv(blocksize=blocksize,rpath=rpath)
-    reducer = base.ID_REDUCER
+    reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])    
 
 def starter(prog):
     gopts.prog = prog
 
-    mat = base.starter_helper(prog)
+    mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"    
     
     rpath = prog.delopt('rpath')

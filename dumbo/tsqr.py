@@ -12,7 +12,6 @@ David F. Gleich
 Copyright (c) 2012
 """
 
-import base
 import mrmc
 import dumbo
 import util
@@ -28,7 +27,7 @@ def runner(job):
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
         if part.startswith('s'):
-            base.add_splay_iteration(job, part)
+            mrmc.add_splay_iteration(job, part)
         else:
             nreducers = int(part)
             if i == 0:
@@ -36,7 +35,7 @@ def runner(job):
                                          isfinal=False)
                 isfinal = False
             else:
-                mapper = base.ID_MAPPER
+                mapper = mrmc.ID_MAPPER
                 isfinal = True
             job.additer(mapper=mapper,
                         reducer=mrmc.SerialTSQR(blocksize=blocksize,
@@ -51,7 +50,7 @@ def starter(prog):
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
 
-    mat = base.starter_helper(prog)
+    mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
     
     matname,matext = os.path.splitext(mat)

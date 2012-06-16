@@ -101,7 +101,7 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output','%s-full-tsqr2%s'%(matname,matext))
+        prog.addopt('output','%s-full-tsqr1%s'%(matname,matext))
     
     gopts.save_params()
 
