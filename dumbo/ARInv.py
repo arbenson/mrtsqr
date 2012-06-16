@@ -4,7 +4,15 @@
 ARInv.py
 ===========
 
-Compute AR^{-1}
+Compute AR^{-1}, where A is tall-and-skinny, and R is small
+
+Example usage:
+dumbo start TSMatMul.py -hadoop icme-hadoop1 -mat A_800M_10.bseq \
+-rpath R_10_10.txt
+
+Austin R. Benson (arbenson@stanford.edu)
+David F. Gleich
+Copyright (c) 2012
 """
 
 import mrmc
@@ -19,7 +27,7 @@ def runner(job):
     blocksize = gopts.getintkey('blocksize')
     rpath = gopts.getstrkey('rpath')
 
-    mapper = ARInv(blocksize=blocksize,rpath=rpath)
+    mapper = mrmc.ARInv(blocksize=blocksize,rpath=rpath)
     reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])    
 

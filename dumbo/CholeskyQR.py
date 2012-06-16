@@ -5,6 +5,15 @@ Cholesky.py
 ===========
 
 Implement a Cholesky QR algorithm using dumbo and numpy.
+
+Example usage:
+dumbo start CholeskyQR.py -mat A_800M_10.bseq -ncols 10 -nummaptasks 30 \
+-reduce_schedule 20,1 -hadoop icme-hadoop1
+
+
+Austin R. Benson (arbenson@stanford.edu)
+David F. Gleich
+Copyright (c) 2012
 """
 
 import mrmc
@@ -29,12 +38,15 @@ def runner(job):
         else:
             nreducers = int(part)
             if i == 0:
-                mapper = AtA(blocksize=blocksize,isreducer=False,ncols=ncols)
-                reducer = AtA(blocksize=blocksize,isreducer=True,ncols=ncols)
+                mapper = mrmc.AtA(blocksize=blocksize, isreducer=False,
+                                  ncols=ncols)
+                reducer = mrmc.AtA(blocksize=blocksize, isreducer=True,
+                                   ncols=ncols)
             else:
                 mapper = mrmc.ID_MAPPER
-                reducer = Cholesky(ncols=ncols)
-            job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks',str(nreducers))])
+                reducer = mrmc.Cholesky(ncols=ncols)
+            job.additer(mapper=mapper, reducer=reducer,
+                        opts=[('numreducetasks', str(nreducers))])
 
 def starter(prog):
     # set the global opts    

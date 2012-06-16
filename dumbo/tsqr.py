@@ -6,6 +6,10 @@ tsqr.py
 
 Driver code for tsqr.
 
+Example usage:
+dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 -reduce_schedule 20,1 \
+-hadoop icme-hadoop1
+
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
