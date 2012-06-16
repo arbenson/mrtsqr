@@ -10,13 +10,13 @@ usage:
 
 matrix_name is the name of the input file that is stored in the HDFS.
 
-map_schedule is a string representation of a comma-separated list of length three.
-The list is used to set Hadoop's nummaptasks option for each phase.  For example,
-"50, 60, 40" will set nummaptasks to 50 for the first phase, 60 for the second
-phase, and 40 for the third phase.  The algorithm is designed to scale for map
-tasks, so each part of the schedule should be as large as possible.  If this
-argument is not provided, then "100, 100, 100" is used.  Note that the actual
-number of map tasks used may differ from the option provided to Hadoop.
+map_schedule is a string representation of a comma-separated list of length 
+three. The list is used to set Hadoop's nummaptasks option for each phase.  For
+example, "50, 60, 40" will set nummaptasks to 50 for the first phase, 60 for the
+second phase, and 40 for the third phase.  The algorithm is designed to scale
+for map tasks, so each part of the schedule should be as large as possible.  If
+this argument is not provided, then "100, 100, 100" is used.  Note that the
+actual number of map tasks used may differ from the option provided to Hadoop.
 
 output_name is used to derive the name of the outpute directories.
 The outputs of the three jobs will be stored in output_name_1,
@@ -59,19 +59,19 @@ def exec_cmd(cmd):
 
 # simple wrapper for parsing a sequence file
 def parse_seq_file(inp):
-    parse_cmd = 'python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s' % (inp, inp + '.out')
-    exec_cmd(parse_cmd)
+  parse_cmd = 'python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s' % (inp, inp + '.out')
+  exec_cmd(parse_cmd)
 
 # simple wrapper for running dumbo scripts with options provided as a list
 def run_dumbo(script, hadoop='', opts=[]):
-    cmd = 'dumbo start ' + script
-    if hadoop != '':
-        cmd += ' -hadoop '
-        cmd += hadoop
-    for opt in opts:
-        cmd += ' '
-        cmd += opt
-    exec_cmd(cmd)
+  cmd = 'dumbo start ' + script
+  if hadoop != '':
+    cmd += ' -hadoop '
+    cmd += hadoop
+  for opt in opts:
+    cmd += ' '
+    cmd += opt
+  exec_cmd(cmd)
 
 
 # Parse command-line options
@@ -86,8 +86,9 @@ parser.add_option('-o', '--output', dest='out', default='',
 parser.add_option('-n', '--ncols', type='int', dest='ncols', default=0,
                   help='number of columns in the matrix')
 parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
-                  help='comma separated list of number of map tasks to use for the three jobs'
-)
+                  help='comma separated list of number of map tasks to use for'
+                       + ' the three jobs')
+
 # TODO(arbenson): add option that computes singular vectors but not the Q in
 # QR.  This will be the go-to option for computing the SVD of a
 # tall-and-skinny matrix.
@@ -126,7 +127,6 @@ try:
   sched[2]
 except:
   error('invalid schedule provided')
-
 
 
 # Now run the MapReduce jobs
