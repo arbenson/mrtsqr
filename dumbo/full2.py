@@ -1,116 +1,28 @@
 #!/usr/bin/env dumbo
 
 """
-Austin R. Benson
+Full TSQR algorithm for MapReduce (part 2)
+
+Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-
-copyright 2012
-
-Full TSQR algorithm for MapReduce
+Copyright (c) 2012
 """
 
-import sys
-import os
-import time
-import struct
-
-import numpy
-import numpy.linalg
-
-import util
 import mrmc
-
 import dumbo
-import dumbo.backends.common
-from dumbo import opt
+import util
+import os
+import full
 
 # create the global options structure
 gopts = util.GlobalOptions()
 
-"""
-FullTSQRRed2
-------------
-
-Takes all of the intermediate Rs
-
-Computes [R_1, ..., R_n] = Q2R_{final}
-
-Output:
-1. R_final: R in A = QR with key-value pairs <i, row>
-2. Q2: <mapper_id, row>
-
-where Q2 is a list of key value pairs.
-
-Each key corresponds to a mapperid from stage 1 and that keys value is the
-Q2 matrix corresponding to that mapper_id
-"""
-@opt("getpath", "yes")
-class FullTSQRRed2(dumbo.backends.common.MapRedBase):
-    def __init__(self, compute_svd=False):
-        self.R_data = {}
-        self.key_order = []
-        self.Q2 = None
-        self.compute_svd = compute_svd
-
-    def collect(self, key, value):
-        assert(key not in self.R_data)
-        data = []
-        for row in value:
-            data.append([float(val) for val in row])
-        self.R_data[key] = data
-
-    def close_R(self):
-        data = []
-        for key in self.R_data:
-            data += self.R_data[key]
-            self.key_order.append(key)
-        A = numpy.array(data)
-        QR = numpy.linalg.qr(A)        
-        self.Q2 = QR[0].tolist()
-        self.R_final = QR[1].tolist()
-        for i, row in enumerate(self.R_final):
-            yield ("R_final", i), row
-        if self.compute_svd:
-            U, S, Vt = numpy.linalg.svd(self.R_final)
-            for i, row in enumerate(U):
-                yield ("U", i), row
-            for i, row in enumerate(S):
-                yield ("Sigma", i), row
-            for i, row in enumerate(Vt):
-                yield ("Vt", i), row
-
-    def close_Q(self):
-        num_rows = len(self.Q2)
-        rows_to_read = num_rows / len(self.key_order)
-
-        ind = 0
-        key_ind = 0
-        local_Q = []
-        for row in self.Q2:
-            local_Q.append(row)
-            ind += 1
-            if (ind == rows_to_read):
-               flat_Q = [entry for row in local_Q for entry in row]
-               yield ("Q2", self.key_order[key_ind]), flat_Q
-               key_ind += 1
-               local_Q = []
-               ind = 0
-
-    def __call__(self,data):
-        for key,values in data:
-                for value in values:
-                    self.collect(key, value)
-
-        for key, val in self.close_R():
-            yield key, val
-        for key, val in self.close_Q():
-            yield key, val
-
 def runner(job):
     compute_svd = gopts.getintkey('svd')
     mapper = mrmc.ID_MAPPER
-    reducer = FullTSQRRed2(compute_svd)
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(1))])
+    reducer = full.FullTSQRRed2(compute_svd)
+    job.additer(mapper=mapper, reducer=reducer,
+                opts=[('numreducetasks', str(1))])
 
 def starter(prog):
     # set the global opts

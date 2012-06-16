@@ -1,93 +1,24 @@
 #!/usr/bin/env dumbo
 
 """
-Austin R. Benson
+Full TSQR algorithm for MapReduce (part 1)
+
+Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-
-copyright 2012
-
-Full TSQR algorithm for MapReduce
+Copyright (c) 2012
 """
 
-import sys
-import os
-import time
-import struct
-import uuid
-
-import numpy
-import numpy.linalg
-
-import util
 import mrmc
-
 import dumbo
-from dumbo import opt
+import util
+import os
+import full
 
 # create the global options structure
 gopts = util.GlobalOptions()
 
-"""
-FullTSQRMap1
---------------
-
-Input: <key, value> pairs representing <row id, row> in the matrix A
-
-Output:
-  1. R matrix: <mapper id, row>
-  2. Q matrix: <mapper id, row + [row_id]>
-"""
-@opt("getpath", "yes")
-class FullTSQRMap1(mrmc.MatrixHandler):
-    def __init__(self):
-        mrmc.MatrixHandler.__init__(self)
-        self.keys = []
-        self.data = []
-        self.mapper_id = uuid.uuid1().hex
-    
-    def collect(self,key,value):
-        if self.ncols == None:
-            self.ncols = len(value)
-            print >>sys.stderr, "Matrix size: %i columns"%(self.ncols)
-        else:
-            assert(len(value) == self.ncols)
-
-        # TODO(arbenson): generalize to handle non-integer keys
-        self.keys.append(int(key))
-        self.data.append(value)
-        self.nrows += 1
-        
-        # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
-            self.counters['rows processed'] += 50000
-
-    def close(self):
-        self.counters['rows processed'] += self.nrows%50000
-
-        # if no data was passed to this task, we just return
-        if len(self.data) == 0:
-            return
-
-        QR = numpy.linalg.qr(numpy.array(self.data))
-        Q = QR[0].tolist()
-
-        yield ("R_%s" % str(self.mapper_id), self.mapper_id), QR[1].tolist()
-
-        for i, row in enumerate(Q):
-            Q[i].append(self.keys[i])
-            if i%50000 == 0:
-                self.counters['Q rows processed'] += 50000
-        
-        flat_Q = [entry for row in Q for entry in row]
-        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), struct.pack('d'*len(flat_Q), *flat_Q)
-
-    def __call__(self,data):
-        self.collect_data(data)
-        for key,val in self.close():
-            yield key, val
-
 def runner(job):
-    mapper = FullTSQRMap1()
+    mapper = full.FullTSQRMap1()
     reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 

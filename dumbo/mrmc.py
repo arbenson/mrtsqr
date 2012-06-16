@@ -39,6 +39,7 @@ def starter_helper(prog):
 
     prog.addopt('file', os.path.join(mypath, 'util.py'))
     prog.addopt('file', os.path.join(mypath, 'mrmc.py'))
+    prog.addopt('file', os.path.join(mypath, 'full.py'))
 
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
@@ -325,7 +326,6 @@ class ARInv(TSMatMul):
         f.close()
         self.small = numpy.linalg.pinv(numpy.mat(data))
 
-
 class Cholesky(dumbo.backends.common.MapRedBase):
     def __init__(self,ncols=10):
         self.ncols = ncols
@@ -427,7 +427,7 @@ class AtA(MatrixHandler):
                         self.row = numpy.array(val)
                     else:
                         self.row = self.row + numpy.array(val)                        
-                yield key, struct.pack('d'*len(self.row),*self.row)
+                yield key, struct.pack('d'*len(self.row), *self.row)
 
         # finally, output data
         if self.isreducer == False:
