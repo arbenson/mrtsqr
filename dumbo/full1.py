@@ -19,7 +19,7 @@ import numpy
 import numpy.linalg
 
 import util
-import base
+import mrmc
 
 import dumbo
 from dumbo import opt
@@ -38,9 +38,9 @@ Output:
   2. Q matrix: <mapper id, row + [row_id]>
 """
 @opt("getpath", "yes")
-class FullTSQRMap1(base.MatrixHandler):
+class FullTSQRMap1(mrmc.MatrixHandler):
     def __init__(self):
-        base.MatrixHandler.__init__(self)
+        mrmc.MatrixHandler.__init__(self)
         self.keys = []
         self.data = []
         self.mapper_id = uuid.uuid1().hex
@@ -88,14 +88,14 @@ class FullTSQRMap1(base.MatrixHandler):
 
 def runner(job):
     mapper = FullTSQRMap1()
-    reducer = base.ID_REDUCER
+    reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 
 def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-    mat = base.starter_helper(prog)
+    mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)

@@ -18,7 +18,6 @@ import numpy
 import numpy.linalg
 
 import util
-import base
 import dumbo
 import dumbo.backends.common
 

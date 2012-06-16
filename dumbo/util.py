@@ -31,7 +31,6 @@ def flatten(l, ltypes=(list, tuple)):
                 l[i:i + 1] = l[i]
         i += 1
     return ltype(l)
-        
 
 class GlobalOptions:
     """ A class to manage passing options to the actual jobs that run. 
@@ -45,7 +44,6 @@ class GlobalOptions:
     Todo: make this have a nicer interface.
     """
     
-    
     def __init__(self,prog=None):
         """ 
         @param prog if prog is specified, then this class sets all
@@ -55,7 +53,6 @@ class GlobalOptions:
         self.cache = {}
         
     def _get_key(self,key,default,typefunc):
-        #print "calling _get_key on ", key, " with default", str(default)
         if key in self.cache:
             return typefunc(self.cache[key])
         
@@ -78,11 +75,9 @@ class GlobalOptions:
         
     def getstrkey(self,key,default=None):
         return self._get_key(key,default,str)
-        
-        
+
     def getintkey(self,key,default=None):
-        return self._get_key(key,default,int)
-        
+        return self._get_key(key,default,int)        
             
     def setkey(self,key,value):
         if self.prog:

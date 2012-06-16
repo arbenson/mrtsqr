@@ -12,18 +12,16 @@ Full TSQR algorithm for MapReduce
 import sys
 import os
 import time
+import struct
 
 import numpy
 import numpy.linalg
 
 import util
-import base
-
-import struct
+import mrmc
 
 import dumbo
 import dumbo.backends.common
-
 from dumbo import opt
 
 # create the global options structure
@@ -110,7 +108,7 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
 
 def runner(job):
     compute_svd = gopts.getintkey('svd')
-    mapper = base.ID_MAPPER
+    mapper = mrmc.ID_MAPPER
     reducer = FullTSQRRed2(compute_svd)
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(1))])
 
@@ -118,7 +116,7 @@ def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-    mat = base.starter_helper(prog)
+    mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)

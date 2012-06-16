@@ -20,7 +20,7 @@ import numpy
 import numpy.linalg
 
 import util
-import base
+import mrmc
 
 import dumbo
 import dumbo.backends.common
@@ -117,14 +117,14 @@ def runner(job):
     q2path = gopts.getstrkey('q2path')
     ncols = gopts.getintkey('ncols')
     mapper = FullTSQRMap3(q2path,ncols)
-    reducer = base.ID_REDUCER
+    reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 
 def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-    mat = base.starter_helper(prog)
+    mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)
