@@ -70,32 +70,32 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
                     return True
                 except struct.error, serror:
                     # no idea what type this is!
-                    raise DataFormatException("Data format is not supported.")
+                    raise DataFormatException('Data format is not supported.')
             else:
-                raise DataFormatException("Number of data bytes ({0}) is not a multiple of 8.".format(len(val)))
-                    
+                raise DataFormatException('Number of data bytes (%d)' % len(val)
+                                          + ' is not a multiple of 8.')
+
 
 def starter_helper(prog):
-    print "running starter!"
+    print 'running starter!'
 
-    mypath =  os.path.dirname(__file__)
-    print "my path: " + mypath    
+    mypath = os.path.dirname(__file__)
+    print 'my path: ' + mypath    
 
-    prog.addopt('file',os.path.join(mypath,'util.py'))
-    prog.addopt('file',os.path.join(mypath,'base.py'))
+    prog.addopt('file', os.path.join(mypath, 'util.py'))
+    prog.addopt('file', os.path.join(mypath, 'base.py'))
+    prog.addopt('file', os.path.join(mypath, 'mrmc.py'))
 
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
         prog.addopt('jobconf',
-            'mapreduce.input.fileinputformat.split.minsize='+str(splitsize))
+            'mapreduce.input.fileinputformat.split.minsize=' + str(splitsize))
         
-    prog.addopt('overwrite','yes')
-    prog.addopt('jobconf','mapred.output.compress=true')
-
+    prog.addopt('overwrite', 'yes')
+    prog.addopt('jobconf', 'mapred.output.compress=true')
     prog.addopt('memlimit','8g')    
-    
-    mat = prog.delopt('mat')
 
+    mat = prog.delopt('mat')
     if mat:
         # add numreps copies of the input
         numreps = prog.delopt('repetition')
@@ -112,6 +112,6 @@ def starter_helper(prog):
 def add_splay_iteration(job, part):
     nreducers = int(part[1:])
     # these tasks should just spray data and compress
-    job.additer(mapper = ID_MAPPER, reducer = ID_REDUCER,
-                opts=[('numreducetasks',str(nreducers))])
-    job.additer(mapper, reducer, opts=[('numreducetasks',str(nreducers))])    
+    opts = [('numreducetasks', str(nreducers))]
+    job.additer(mapper=ID_MAPPER, reducer=ID_REDUCER, opts=opts)
+    job.additer(mapper, reducer, opts=opts)
