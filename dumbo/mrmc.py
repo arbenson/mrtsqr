@@ -25,11 +25,13 @@ import dumbo.backends.common
 ID_MAPPER = 'org.apache.hadoop.mapred.lib.IdentityMapper'
 ID_REDUCER = 'org.apache.hadoop.mapred.lib.IdentityReducer'
 
+
 class DataFormatException(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
+
 
 def starter_helper(prog, use_full=False):
     print 'running starter!'
@@ -46,10 +48,10 @@ def starter_helper(prog, use_full=False):
     if splitsize is not None:
         prog.addopt('jobconf',
             'mapreduce.input.fileinputformat.split.minsize=' + str(splitsize))
-        
+
     prog.addopt('overwrite', 'yes')
     prog.addopt('jobconf', 'mapred.output.compress=true')
-    prog.addopt('memlimit','8g')    
+    prog.addopt('memlimit', '8g')
 
     mat = prog.delopt('mat')
     if mat:
@@ -63,6 +65,7 @@ def starter_helper(prog, use_full=False):
         return mat            
     else:
         return None
+
 
 def add_splay_iteration(job, part):
     nreducers = int(part[1:])
@@ -125,8 +128,6 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
             else:
                 raise DataFormatException('Number of data bytes (%d)' % len(val)
                                           + ' is not a multiple of 8.')
-
-
 
 
 """
@@ -226,6 +227,7 @@ class SerialTSQR(MatrixHandler):
         # finally, output data
         for key,val in self.close():
             yield key, val
+
 
 """
 Tall-and-skinny matrix multiplication
@@ -339,6 +341,7 @@ class Cholesky(dumbo.backends.common.MapRedBase):
                 
         for key,val in self.close():
             yield key, val
+
 
 class AtA(MatrixHandler):
     def __init__(self,blocksize=3,isreducer=False,ncols=10):
