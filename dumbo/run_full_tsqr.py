@@ -28,9 +28,10 @@ Austin R. Benson arbenson@gmail.com
 Copyright (c) 2012
 """
 
+import os
+import subprocess
 import sys
 import time
-import subprocess
 from optparse import OptionParser
 
 verbose = True
@@ -144,8 +145,11 @@ run_dumbo('full2.py', 'icme-hadoop1', ['-mat ' + out1 + '/R_*', '-output ' + out
 # Q2 file needs parsing before being distributed to phase 3
 Q2_file = out2 + '_Q2.txt'
 
-rm_cmd = 'rm -rf %s %s' % (Q2_file, Q2_file + '.out')
-exec_cmd(rm_cmd)
+if os.path.exists(Q2_file):
+  os.remove(Q2_file)
+
+if os.path.exists(Q2_file + '.out'):
+  os.remove(Q2_file + '.out')
 
 copy_cmd = 'hadoop fs -copyToLocal %s/Q2/part-00000 %s' % (out2, Q2_file)
 exec_cmd(copy_cmd)
@@ -162,8 +166,10 @@ run_dumbo('full3.py', 'icme-hadoop1', ['-mat ' + in3, '-output ' + out + '_3',
 if svd_opt == 2:
   small_U_file = out2 + '_U.txt'
 
-  rm_cmd = 'rm -rf %s %s' % (small_U_file, small_U_file + '.out')
-  exec_cmd(rm_cmd)
+  if os.path.exists(small_U_file):
+    os.remove(small_U_file)
+  if os.path.exists(small_U_file + '.out'):
+    os.remove(small_U_file + '.out')
 
   copy_cmd = 'hadoop fs -copyToLocal %s/U/part-00000 %s' % (out2, small_U_file)
   exec_cmd(copy_cmd)
