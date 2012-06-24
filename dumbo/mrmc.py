@@ -21,6 +21,8 @@ import util
 import dumbo
 import dumbo.backends.common
 
+from dumbo import opt
+
 # some variables
 ID_MAPPER = 'org.apache.hadoop.mapred.lib.IdentityMapper'
 ID_REDUCER = 'org.apache.hadoop.mapred.lib.IdentityReducer'
@@ -405,18 +407,9 @@ class AtA(MatrixHandler):
 
             
     def __call__(self,data):
-        deduced = False
         if self.isreducer == False:
             for key,value in data:
-                if isinstance(value, str):
-                    if not deduced:
-                        deduced = self.deduce_string_type(value)
-                    # handle conversion from string
-                    if self.unpacker is not None:
-                        value = self.unpacker.unpack(value)
-                    else:
-                        value = [float(p) for p in value.split()]
-                self.collect(key,value)            
+                self.collect_data_instance(key, value)
         else:
             for key,values in data:
                 for value in values:
@@ -424,10 +417,93 @@ class AtA(MatrixHandler):
                     if self.row == None:
                         self.row = numpy.array(val)
                     else:
-                        self.row = self.row + numpy.array(val)                        
+                        self.row = self.row + numpy.array(val)
                 yield key, struct.pack('d'*len(self.row), *self.row)
 
         # finally, output data
         if self.isreducer == False:
             for key,val in self.close():
                 yield key, val
+
+
+class BtA(MatrixHandler):
+    def __init__(self, name_id='B'):
+        MatrixHandler.__init__(self)
+        self.Output_mat = None
+        self.name_id = name_id
+    
+    def collect(self, key, value):
+        if self.ncols == None:
+            self.ncols = len(value)
+            print >>sys.stderr, "Matrix size: %i columns"%(self.ncols)
+            self.Output_mat = numpy.zeros(shape=(self.ncols, self.ncols))
+        else:
+            if not len(value) == self.ncols:
+                return
+        
+        self.data.append(value)
+        if len(data) == 2:
+            # we always collect b first
+            bt = numpy.transpose(numpy.mat(data[0]))
+            a = numpy.mat(data[1])
+            self.Output_mat += bt*a
+            self.data = []
+
+        self.nrows += 1
+        # write status updates so Hadoop doesn't complain
+        if self.nrows%50000 == 0:
+            self.counters['rows processed'] += 50000
+
+    def close(self):
+        self.counters['rows processed'] += self.nrows%50000
+        if self.Output_mat is not None:
+            for ind, row in enumerate(self.Output_mat.getA()):
+                yield ind, util.array2list(row)
+            
+    def __call__(self, data):
+        # this is only run as a reducer
+        for key, values in data:
+            # there are always two value instances
+            assert(len(values) == 2)
+            path1, val1 = values[0]
+            path2, val2 = values[1]
+
+            # we want to collect B first
+            if path2.find(self.name_id) != -1:
+                tmp = val1
+                val1 = val2
+                val2 = tmp
+
+            self.collect_data_instance(key, val1)
+            self.collect_data_instance(key, val2)
+
+        for key, value in self.close():
+            yield key, value
+
+@opt('addpath', 'yes')
+class FileAppender():
+    def __init__(self):
+        pass
+
+    def __call__(key, value):
+        path, _key = key
+        yield _key, (value, path)
+
+class RowSum(MatrixHandler):
+    def __init__(self, ncols=10):
+        MatrixHandler.__init__(self)
+        self.blocksize = blocksize
+        self.ncols = ncols
+        self.rows = {}
+
+    def collect(self, key, value):
+        if key not in self.rows:
+            self.rows[key] = numpy.array([0]*self.ncols)
+        self.rows[key] += numpy.array(value)
+
+    def __call__(self, data):
+        for key, values in data:
+            self.collect_data(values, key)
+        for key in self.rows:
+            yield key, list(self.rows[key])
+
