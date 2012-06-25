@@ -2,9 +2,12 @@
 
 import os
 import util
-gopts = util.GlobalOptions()
 import sys
 import dumbo
+import time
+import numpy
+
+gopts = util.GlobalOptions()
 
 print >>sys.stderr, "Running code ..."
 
@@ -41,7 +44,8 @@ class UandAnReducer(dumbo.backends.common.MapRedBase):
                     self.collect(key,val[1],self.dataA)
                 else:
                     assert('This means you had a bug in the mapper')
-        self.close()
+        for key, val in self.close():
+            yield key, val
    
     def array2list(self,row):
         return [float(val) for val in row]
