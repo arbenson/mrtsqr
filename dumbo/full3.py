@@ -36,7 +36,7 @@ def starter(prog):
     if not output:
         prog.addopt('output','%s-full-tsqr-3%s'%(matname,matext))
     
-    gopts.getintkey('ncols',10)
+    gopts.getintkey('ncols', 10)
 
     q2path = prog.delopt('q2path')
     if not q2path:

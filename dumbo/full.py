@@ -128,6 +128,7 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
             yield ("R_final", i), row
         if self.compute_svd:
             U, S, Vt = numpy.linalg.svd(self.R_final)
+            S = numpy.diag(S)
             for i, row in enumerate(U):
                 yield ("U", i), row
             for i, row in enumerate(S):
