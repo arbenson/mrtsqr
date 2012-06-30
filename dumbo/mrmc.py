@@ -350,7 +350,6 @@ class AtA(MatrixHandler):
         MatrixHandler.__init__(self)        
         self.blocksize=blocksize
         self.isreducer=isreducer
-        self.nrows = 0
         self.data = []
         self.A_curr = None
         self.row = None
@@ -426,4 +425,109 @@ class AtA(MatrixHandler):
                 yield key, val
 
 
+class BtAReducer(MatrixHandler):
+    # Now that we have B and A stored together, combine them locally
+    def __init__(self,blocksize=3):
+        MatrixHandler.__init__(self)
+        self.blocksize=blocksize    
+        self.BtA = None
+        self.dataB = []
+        self.dataA = []
+   
+    def array2list(self,row):
+        return [float(val) for val in row]
 
+    def compress(self):
+        # Compute BtA on the data accumulated so far
+        if self.ncols is None:
+            return
+        # Wait until we get both aligned
+        if len(self.dataB) != len(self.dataA):
+            return       
+        t0 = time.time()
+        B_mat = numpy.mat(self.dataB)
+        A_mat = numpy.mat(self.dataA)
+        BtA_flush = B_mat.T*A_mat
+        dt = time.time() - t0
+        self.counters['numpy time (millisecs)'] += int(1000*dt)
+
+        # reset data and add flushed update to local copy
+        self.dataB = []
+        self.dataA = []
+        if self.BtA == None:
+            self.BtA = BtA_flush
+        else:
+            self.BtA = self.BtA + BtA_flush
+
+    def collect(self,key,value,subset):        
+        if self.ncols == None:
+            self.ncols = len(value)
+            print >>sys.stderr, "Matrix size: %i columns"%(self.ncols)
+        else:
+            # TODO should we warn and truncate here?
+            # No. that seems like something that will introduce
+            # bugs.  Maybe we could add a "liberal" flag
+            # for that.
+            if len(value) != self.ncols:
+                assert('Wrong input in terms of ncols length')
+        
+        subset.append(value)
+        self.nrows += 1
+        
+        if len(subset)>self.blocksize*self.ncols:
+            self.counters['BtA Compressions'] += 1
+            # compress the data
+            self.compress()
+            
+        # write status updates so Hadoop doesn't complain
+        if self.nrows%50000 == 0:
+            self.counters['rows processed'] += 50000
+
+    def close(self):
+        assert(len(self.dataA) == len(self.dataB))
+        self.counters['rows processed'] += self.nrows%50000
+        self.compress()
+        for ind, row in enumerate(self.BtA.getA()):
+            r = self.array2list(row)
+            yield ind, r
+        
+    def __call__(self,data):
+        # this is always a reducer
+        for key,values in data:
+            for val in values:
+                if val[0] == 'B':
+                    self.collect(key, val[1], self.dataB)
+                elif val[0] == 'A':
+                    self.collect(key, val[1], self.dataA)
+                else:
+                    assert('Do not recognize source of data')
+
+        for key, val in self.close():
+            yield key, val
+
+
+class BtAMapper:
+    opts = [('addpath','yes')]
+    def __init__(self, B_id):
+        self.B_id = B_id
+
+    def __call__(self,key_,value):
+        path = key_[0]
+        key = key_[1]
+        if path.find(self.B_id) == -1:
+            # this is A
+            yield key, ('A', value)
+        else:
+            # this is B
+            yield key, ('B', value)
+
+
+def ArraySumReducer(key, values):
+    for j,val in enumerate(values):
+        if j==0: 
+            arr = val
+        else:
+            assert(len(val) == len(arr))
+            for k in xrange(len(arr)):
+                arr[k] += val[k]
+    yield key,arr

@@ -1,5 +1,11 @@
 #!/usr/bin/env dumbo
 
+"""
+DEPRECATED
+
+Use the more general BtA.py instead.
+"""
+
 import os
 import util
 import sys
