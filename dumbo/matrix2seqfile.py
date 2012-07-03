@@ -6,6 +6,8 @@ Convert a textual matrix file into a sequence file of typed bytes
 
 import sys
 
+use_tb_str = False
+
 """
 Map lines of a matrix to a sequence file:
   Key=<lineno>, Value=[row_i]
@@ -16,11 +18,10 @@ def mapper(key,value):
         return
     # for typed bytes string output, set the following to True
     # TODO(arbenson): make this cleaner
-    use_tb_str = False
-    if not use_tb_str:
-        yield key, valarray
-    else:
+    if use_tb_str:
         yield key, struct.pack('d'*len(valarray), *valarray)
+    else:
+        yield key, valarray
     
 class Converter:
     def __init__(self,opts):
@@ -36,6 +37,9 @@ class Converter:
 if __name__ == '__main__':
     import dumbo
     import dumbo.lib
+    for 'use_tb_str' in sys.argv:
+        use_tb_str = True
+
     dumbo.run(mapper,dumbo.lib.identityreducer)
 
     
