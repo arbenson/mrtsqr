@@ -230,12 +230,12 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
 
     def __call__(self, data):
         for key, val in data:
-            mat, keys = val
+            matrix, keys = val
             num_entries = len(matrix) / 8
             assert (num_entries % self.ncols == 0)
             mat = list(struct.unpack('d'*num_entries, matrix))
             mat = numpy.mat(mat)
-            mat = numpy.reshape(mat, (num_entries/self.ncols , self.ncols))
+            mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
             for i, value in enumerate(mat.tolist()):
                 self.collect(key, keys[i], value)
 
