@@ -34,24 +34,6 @@ class DataFormatException(Exception):
         return repr(self.value)
 
 
-def parse_matrix_txt(mpath):
-        f = open(mpath, 'r')
-        data = []
-        for line in f:
-            if len(line) > 5:
-                ind2 = line.rfind(')')
-                line = line[ind2+3:]
-                line = line.lstrip('[').rstrip().rstrip(']')
-                try:
-                    line2 = line.split(',')
-                    line2 = [float(v) for v in line2]
-                except:
-                    line2 = line.split()
-                    line2 = [float(v) for v in line2]
-                yield line2
-        f.close()
-
-
 def starter_helper(prog, use_full=False):
     print 'running starter!'
 
@@ -241,7 +223,8 @@ class TSMatMul(MatrixHandler):
         self.parseM(mpath)
 
     def parseM(self, mpath):
-        for row in parse_matrix_txt(mpath):
+        data = []
+        for row in util.parse_matrix_txt(mpath):
             data.append(row)
         self.small = numpy.mat(data)
 
