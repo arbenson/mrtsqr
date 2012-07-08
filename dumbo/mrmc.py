@@ -99,8 +99,7 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
                 value = self.unpacker.unpack(value)
             else:
                 value = [float(p) for p in value.split()]
-        self.collect(key,value)
-        
+        self.collect(key,value)        
 
     def collect_data(self, data, key=None):
         if key == None:
@@ -126,7 +125,7 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
                     return True
                 except struct.error, serror:
                     # no idea what type this is!
-                    raise DataFormatException('Data format is not supported.')
+                    raise DataFormatException('Data format type is not supported.')
             else:
                 raise DataFormatException('Number of data bytes (%d)' % len(val)
                                           + ' is not a multiple of 8.')
@@ -136,26 +135,13 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
 Serial TSQR
 """
 class SerialTSQR(MatrixHandler):
-    def __init__(self,blocksize=3,keytype='random',isreducer=False,isfinal=False):
+    def __init__(self,blocksize=3, isreducer=False, isfinal=False):
         MatrixHandler.__init__(self)
         self.blocksize=blocksize
-        if keytype=='random':
-            self.keyfunc = lambda x: random.randint(0, 4000000000)
-        elif keytype=='first':
-            self.keyfunc = self._firstkey
-        else:
-            raise Error("Unkonwn keytype %s"%(keytype))
-        self.first_key = None
         self.isreducer=isreducer
         self.data = []
         self.isfinal = isfinal
     
-    def _firstkey(self, i):
-        if isinstance(self.first_key, (list,tuple)):
-            return (util.flatten(self.first_key),i)
-        else:
-            return (self.first_key,i)
-
     def QR(self):
         A = numpy.array(self.data)
         return numpy.linalg.qr(A,'r')        
@@ -179,33 +165,29 @@ class SerialTSQR(MatrixHandler):
             self.data.append(util.array2list(row))
                         
     def collect(self,key,value):
-        if len(self.data) == 0:
-            self.first_key = key
-        
         if self.ncols == None:
             self.ncols = len(value)
             print >>sys.stderr, "Matrix size: %i columns"%(self.ncols)
-        else:
-            # TODO should we warn and truncate here?
-            # No. that seems like something that will introduce
-            # bugs.  Maybe we could add a "liberal" flag
-            # for that.
-            assert(len(value) == self.ncols)
+
+        if len(value) != self.ncols:
+            # TODO(arbenson): add a "liberal" flag that 
+            raise DataFormatException(
+                'Length of value did not match number of columns')
 
         self.data.append(value)
         self.nrows += 1
         
-        if len(self.data)>self.blocksize*self.ncols:
+        if len(self.data) > self.blocksize * self.ncols:
             self.counters['QR Compressions'] += 1
             # compress the data
             self.compress()
             
         # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
+        if self.nrows % 50000 == 0:
             self.counters['rows processed'] += 50000
 
     def close(self):
-        self.counters['rows processed'] += self.nrows%50000
+        self.counters['rows processed'] += self.nrows
         self.compress()
         for i,row in enumerate(self.data):
             key = self.keyfunc(i)
@@ -462,19 +444,17 @@ class BtAReducer(MatrixHandler):
     def collect(self,key,value,subset):        
         if self.ncols == None:
             self.ncols = len(value)
-            print >>sys.stderr, "Matrix size: %i columns"%(self.ncols)
-        else:
-            # TODO should we warn and truncate here?
-            # No. that seems like something that will introduce
-            # bugs.  Maybe we could add a "liberal" flag
-            # for that.
-            if len(value) != self.ncols:
-                assert('Wrong input in terms of ncols length')
+            print >>sys.stderr, "Matrix size: %i columns" % (self.ncols)
+
+        if len(value) != self.ncols:
+            # TODO(arbenson): add a "liberal" flag that 
+            raise DataFormatException(
+                'Length of value did not match number of columns')
         
         subset.append(value)
         self.nrows += 1
         
-        if len(subset)>self.blocksize*self.ncols:
+        if len(subset) > self.blocksize * self.ncols:
             self.counters['BtA Compressions'] += 1
             # compress the data
             self.compress()
@@ -484,7 +464,8 @@ class BtAReducer(MatrixHandler):
             self.counters['rows processed'] += 50000
 
     def close(self):
-        assert(len(self.dataA) == len(self.dataB))
+        if len(self.dataA) != len(self.dataB):
+            raise DataFormatException('A and B data lengths do not match!')
         self.counters['rows processed'] += self.nrows%50000
         self.compress()
         for ind, row in enumerate(self.BtA.getA()):
@@ -500,7 +481,7 @@ class BtAReducer(MatrixHandler):
                 elif val[0] == 'A':
                     self.collect(key, val[1], self.dataA)
                 else:
-                    assert('Do not recognize source of data')
+                    raise DataFormatException('Do not recognize source of data')
 
         for key, val in self.close():
             yield key, val
@@ -523,11 +504,12 @@ class BtAMapper:
 
 
 def ArraySumReducer(key, values):
-    for j,val in enumerate(values):
-        if j==0: 
+    for j, val in enumerate(values):
+        if j == 0: 
             arr = val
         else:
-            assert(len(val) == len(arr))
+            if len(val) != len(arr):
+                raise DataFormatException('Differing array lengths for summing')
             for k in xrange(len(arr)):
                 arr[k] += val[k]
     yield key,arr
