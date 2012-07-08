@@ -2,13 +2,10 @@
 
 import numpy
 import os
+import subprocess
 import sys
 import time
-import subprocess
-
-verbose = True
-times = []
-split = '-'*60
+import util
 
 out_dir = 'tests-out'
 try:
@@ -16,42 +13,7 @@ try:
 except:
   pass
 
-# print error messages and exit with failure
-def error(msg):
-  print msg
-  sys.exit(1)
-
-# simple wrapper around printing with verbose option
-def output(msg):
-  if verbose:
-    print msg
-
-# simple wrapper for executing command line programs
-def exec_cmd(cmd):
-  output('(command is: %s)' % (cmd))
-  output(split)
-  t0 = time.time()
-  retcode = subprocess.call(cmd,shell=True)
-  times.append(time.time() - t0)
-  # TODO(arbenson): make it more obvious when something fails
-  return retcode
-
-# simple wrapper for parsing a sequence file
-def parse_seq_file(input, output):
-  parse_cmd = 'python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s' % (input, output)
-  exec_cmd(parse_cmd)
-
-# simple wrapper for running dumbo scripts with options provided as a list
-def run_dumbo(script, hadoop='', opts=[]):
-  return
-  cmd = 'dumbo start ' + script
-  if hadoop != '':
-    cmd += ' -hadoop '
-    cmd += hadoop
-  for opt in opts:
-    cmd += ' '
-    cmd += opt
-  exec_cmd(cmd)
+cm = util.CommandManager()
 
 # deal with annoying new lines
 def format_row(row):
@@ -61,66 +23,61 @@ def format_row(row):
     val_str += ' '
   return val_str[:-1]
 
-def scaled_ones(nrows, ncols, scale, name):
-  f = open(out_dir + '/' + name, 'w')
+def scaled_ones(nrows, ncols, scale, file):
+  f = open(file, 'w')
   A = numpy.ones((nrows, ncols))*scale
   for row in A:
     f.write(format_row(row) + '\n')
   f.close()
 
-def scaled_identity(nrows, scale, name):
-  f = open(out_dir + '/' + name, 'w')
+def scaled_identity(nrows, scale, file):
+  f = open(file, 'w')
   A = numpy.identity(nrows)*scale
   for row in A:
     f.write(format_row(row) + '\n')
   f.close()
 
+def orthogonal(nrows, ncols, file):
+  f = open(file, 'w')
+  Q = numpy.linalg.qr(numpy.random.randn(nrows, ncols))[0]
+  for row in Q:
+    f.write(format_row(row) + '\n')
+  f.close()
+
 def txt_to_mseq(input, output):
-  run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
-                                                  '-output ' + output,
-                                                  '-nummaptasks 10'])
+  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
+                                                     '-output ' + output,
+                                                     '-nummaptasks 10'])
 
 def txt_to_bseq(input, output):
-  run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
-                                                  '-output ' + output,
-                                                  'use_tb_str',
-                                                  '-nummaptasks 10'])
+  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
+                                                     '-output ' + output,
+                                                     'use_tb_str',
+                                                     '-nummaptasks 10'])
 
 def check_rows(file, num_rows, comp_row):
-  f = open(file)
   good_rows = 0
-  for row in f:
-    ind = line.rfind(')')
-    line = line[ind+3:]
-    line = line.lstrip('[').rstrip().rstrip(']')
-    try:
-      line2 = line.split(',')
-      line2 = [int(v) for v in line2]
-    except:
-      line2 = line.split()
-      line2 = [int(v) for v in line2]
-    
-    if len(line2) != len(comp_row):
+  for row in util.parse_matrix_txt(file):
+    if len(row) != len(comp_row):
       continue
-    else:
-      good = True
-      for i, val in enumerate(comp_row):
-        if val != comp_row[i]:
-          good = False
-          break
+    good = True
+    for i, val in enumerate(comp_row):
+      if val != comp_row[i]:
+        good = False
+        break
       if good:
         good_rows += 1
-
-  f.close()
   return good_rows
 
-def print_result(test, success):
+def print_result(test, success, output=None):
   print '-'*40
   print 'TEST: ' + test
   if success:
     print '    ***SUCCESS***'
   else:
     print '    ***FAILURE***'
+  if output is not None:
+    print output
   print '-'*40  
 
 def TSMatMul_test():
@@ -132,21 +89,23 @@ def TSMatMul_test():
   result = 'TSMatMul_test'
   result_out = '%s/%s' % (out_dir, result)
 
-  scaled_ones(1000, 16, 4, ts_mat)
-  txt_to_mseq(ts_mat_out, ts_mat + '.mseq')
-  scaled_identity(16, 2, 'tsmatmul-16-16')
+  if not os.path.exists(ts_mat_out):
+    scaled_ones(1000, 16, 4, ts_mat_out)
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    txt_to_mseq(ts_mat_out, ts_mat + '.mseq')
+    
+  if not os.path.exists(small_mat_out):
+    scaled_identity(16, 2, small_mat_out)
 
-  return False
-
-  run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat + '.mseq',
-                                            '-output ' + result,
-                                            '-mpath ' + small_mat_out,
-                                            '-nummaptasks 1'])
+  cm.run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat + '.mseq',
+                                               '-output ' + result,
+                                               '-mpath ' + small_mat_out,
+                                               '-nummaptasks 1'])
 
   # we should only have one output file
-  copy_cmd = 'hadoop fs -copyToLocal %s/part-00000 %s' % (result, result_out + '.mseq')
-  exec_cmd(copy_cmd)
-  parse_seq_file(result_out, result_out + '.txt')
+  cm.copy_from_hdfs(result, result_out + '.mseq')
+  cm.parse_seq_file(result_out, result_out + '.txt')
   good_rows = check_rows(result_out + '.txt', 1000, [8]*16)
   return good_rows == 1000
 
@@ -163,14 +122,42 @@ def BtA_test():
   return False
 
 def full_tsqr_test():
+  mat = 'Q-2000-20'
+  mat_out = '%s/%s' % (out_dir, mat)
+
+  if not os.path.exists(mat_out):
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    orthogonal(2000, 20, mat_out)
+    txt_to_mseq(mat_out, mat + '.mseq')
+
+
+  out = 'full_tsqr_test_out'
+
+  # compute full TSQR with SVD
+  cmd = 'python run_full_tsqr.py'
+  cmd += ' --input=' + mat + '.mseq'
+  cmd += ' --output=' + out
+  cmd += ' --ncols=20'
+  cmd += ' --schedule=12,12,12'
+  cmd += ' --svd=2'
+
+  # copy Sigma, V^t locally
+
+  # make sure that Sigma, V^t are diagonal ones
+
   return False
 
-tests = {'TSMatMul': TSMatMul_test,
-         'ARInv': ARInv_test,
-         'tsqr': tsqr_test,
-         'CholeskyQR': CholeskyQR_test,
-         'BtA': BtA_test,
-         'full_tsqr': full_tsqr_test}
+def tsqr_ir_test():
+  return False
+
+tests = {'TSMatMul':        TSMatMul_test,
+         'ARInv':           ARInv_test,
+         'tsqr':            tsqr_test,
+         'CholeskyQR':      CholeskyQR_test,
+         'BtA':             BtA_test,
+         'full_tsqr':       full_tsqr_test,
+         'tsqr_ir':         tsqr_ir_test}
 
 failures = []
 args = sys.argv[1:]
@@ -181,11 +168,13 @@ if len(args) > 0 and args[0] == 'all':
 for arg in args:
   if arg not in tests:
     print 'unrecognized test: ' + arg
+    continue
   try:
     result = tests[arg]()
   except:
     result = False
-  print_result(arg, result)  
+  print_result(arg, result)
+
   if not result:
     failures.append(arg)
 
