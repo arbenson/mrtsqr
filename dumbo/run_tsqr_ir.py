@@ -4,96 +4,85 @@
 This is a script to run the TSQR with one step of iterative refinement to
 compute Q.
 
-usage:
+See options:
+     python run_full_tsqr.py --help
 
-    python run_full_tsqr.py matrix_name [map_schedule] [output_name]
+Example usage:
 
-matrix_name is the name of the input file that is stored in the HDFS.
-
-map_schedule is a string representation of a comma-separated list of length three.
-The list is used to set Hadoop's nummaptasks option for each phase.  For example,
-"50, 60, 40" will set nummaptasks to 50 for the first phase, 60 for the second
-phase, and 40 for the third phase.  The algorithm is designed to scale for map
-tasks, so each part of the schedule should be as large as possible.  If this
-argument is not provided, then "100, 100, 100" is used.  Note that the actual
-number of map tasks used may differ from the option provided to Hadoop.
-
-output_name is used to derive the name of the outpute directories.
-The outputs of the three jobs will be stored in output_name_1,
-output_name_2, and output_name_3.
-
-This script relies on the script q2parse.sh, which is used for a preliminary
-parsing of the output of phase 2.  q2parse.sh was designed to handle the
-output on NERSC's Magellan cluster.  It has not been tested on other
-Hadoop clusters.
-
-Austin R. Benson arbenson@gmail.com
+Austin R. Benson     arbenson@stanford.edu
 David F. Gleich
 Copyright (c) 2012
+
+This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 """
 
 import sys
 import time
 import subprocess
+import util
+from optparse import OptionParser
 
-in1 = sys.argv[1]
+# Parse command-line options
+#
+# TODO(arbenson): use argparse instead of optparse when icme-hadoop1 defaults
+# to python 2.7
+parser = OptionParser()
+parser.add_option('-i', '--input', dest='input', default='',
+                  help='input matrix')
+parser.add_option('-o', '--output', dest='out', default='',
+                  help='base string for output of Hadoop jobs')
+parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
+                  help='comma separated list of number of map tasks to use for'
+                       + ' the three jobs')
+parser.add_option('-q', '--quiet', action='store_false', dest='verbose',
+                  default=True, help='turn off some statement printing')
 
+(options, args) = parser.parse_args()
+cm = util.CommandManager(verbose=options.verbose)
+
+# Store options in the appropriate variables
+in1 = options.input
+if in1 == '':
+  cm.error('no input matrix provided, use --input')
+
+out = options.out
+if out == '':
+  # TODO(arbenson): make sure in1 is clean
+  out = in1 + '-qir'
+
+sched = options.sched
 try:
-    sched = sys.argv[2]
-    sched = [int(s) for s in sched.split(',')]
-    sched[3]
-    print "schedule: " + str(sched[0:4])
+  sched = [int(s) for s in sched.split(',')]
+  sched[2]
 except:
-    sched = [100,100,100,100]
-    print "schedule: " + str(sched)    
+  cm.error('invalid schedule provided')
 
-try:
-    out = sys.argv[3]
-except:
-    out = "%s-qir" % (in1)
-
-times = []
-split = "-"*60
 
 def tsqr_arinv_pipeline(in1, out):
     blocksize = 100
     
-    out1 = "%s_qrr" % (out)
-    cmd1 = "dumbo start tsqr.py -mat %s -blocksize %d -output %s -use_system_numpy \
-    -reduce_schedule 138,1 -hadoop nersc" % (in1, blocksize, out1)
-    print "running tsqr..."
-    print "(command is: %s)" % (cmd1)
-    print split
+    out1 = out + '_qrr'
+    cm.run_dumbo('tsqr.py', 'icme-hadoop1', ['-mat ' + in1,
+                                             '-blocksize' + str(blocksize),
+                                             '-output', + out1,
+                                             '-reduce_schedule 20,1'])
+    cmd.output('running tsqr...')
 
     t0 = time.time()
     subprocess.call(cmd1, shell=True)
     times.append(time.time() - t0)
 
-    # parsing
-    R_file = "%s_R" % out1
-    cat_cmd = "dumbo cat %s/part-00000 -hadoop nersc > %s" % (out1, R_file)
+    R_file = out1 + '_R'
+    cm.copy_from_hdfs(out1, R_file)
+    cm.parse_seq_file(R_file)
 
-    t0 = time.time()
-    subprocess.call(cat_cmd, shell=True)
-    times.append(time.time() - t0)
-
-    parse_cmd = "sh q2parse.sh %s" % (R_file)
-    subprocess.call(parse_cmd, shell=True)
-
-    out2 = "%s_Q" % (out)
-    cmd2 = "dumbo start ARInv.py -mat %s -output %s -rpath %s -blocksize %d -use_system_numpy \
-    -hadoop nersc" % (in1, out2, R_file, blocksize)
-
-    print "running arinv..."
-    print "(command is: %s)" % (cmd2)
-    print split
-
-    t0 = time.time()
-    subprocess.call(cmd2, shell=True)
-    times.append(time.time() - t0)
+    out2 = out + '_Q'
+    cm.run_dumbo('ARInv.py', 'icme-hadoop1', ['-mat ' + in1,
+                                              'blocksize ' + str(blocksize)                                  
+                                              '-output ' + out2,
+                                              '-rpath ' + R_file + '.out'])
 
 tsqr_arinv_pipeline(in1, out)
-tsqr_arinv_pipeline("%s_Q" % out, "%s_IR" % out)
+tsqr_arinv_pipeline(out + '_Q', out + '_IR')
 
-print split
-print "times: %s" % (str(times))
+cm.output('times: ' + str(cm.times))
