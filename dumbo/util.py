@@ -5,8 +5,10 @@ util.py
 Utility routines for the tsqr and regression code.
 """
 
-import sys
 import os
+import subprocess
+import sys
+import time
 
 def array2list(row):
     return [float(val) for val in row]
@@ -26,6 +28,23 @@ def flatten(l, ltypes=(list, tuple)):
                 l[i:i + 1] = l[i]
         i += 1
     return ltype(l)
+
+def parse_matrix_txt(mpath):
+        f = open(mpath, 'r')
+        data = []
+        for line in f:
+            if len(line) > 5:
+                ind2 = line.rfind(')')
+                line = line[ind2+3:]
+                line = line.lstrip('[').rstrip().rstrip(']')
+                try:
+                    line2 = line.split(',')
+                    line2 = [float(v) for v in line2]
+                except:
+                    line2 = line.split()
+                    line2 = [float(v) for v in line2]
+                yield line2
+        f.close()
 
 class GlobalOptions:
     """ A class to manage passing options to the actual jobs that run. 
@@ -92,14 +111,17 @@ class GlobalOptions:
             self.prog.addopt('param',str(key)+'='+str(value))
         
 
+"""
+CommandManager is our cheapy build system.
+"""
 class CommandManager:
-    def __init__(verbose=True):
+    def __init__(self, verbose=True):
         self.verbose = verbose
         self.times = []
         self.split = '-'*60
 
     # simple wrapper around printing with verbose option
-    def output(msg, split=False):
+    def output(self, msg, split=False):
         if self.verbose:
             if split:
                 print self.split
@@ -108,11 +130,11 @@ class CommandManager:
                 print self.split
 
      # print error messages and exit with failure
-     def error(msg, code=1):
-         print msg
-         sys.exit(code)
+    def error(self, msg, code=1):
+        print msg
+        sys.exit(code)
 
-    def exec_cmd(cmd):
+    def exec_cmd(self, cmd):
         self.output('(command is: %s)' % (cmd), True)
         t0 = time.time()
         retcode = subprocess.call(cmd, shell=True)
@@ -121,7 +143,7 @@ class CommandManager:
         return retcode
 
     # simple wrapper for running dumbo scripts with options provided as a list
-    def run_dumbo(script, hadoop='', opts=[]):
+    def run_dumbo(self, script, hadoop='', opts=[]):
         cmd = 'dumbo start ' + script
         if hadoop != '':
             cmd += ' -hadoop '
@@ -131,13 +153,13 @@ class CommandManager:
             cmd += opt
         self.exec_cmd(cmd)
 
-    def copy_from_hdfs(input, output):
-        copy_cmd = 'hadoop fs -copyToLocal '
+    def copy_from_hdfs(self, input, output):
+        copy_cmd = 'hadoop fs -copyToLocal ' \
                    + '%s/part-00000 %s' % (input, output)
         self.exec_cmd(copy_cmd)
 
     # parse a sequence file
-    def parse_seq_file(input, output=None):
+    def parse_seq_file(self, input, output=None):
         path = os.path.dirname(__file__)
         # TODO(arbenson): import the files instead of this hack
         reader = os.path.join(path,
@@ -146,6 +168,6 @@ class CommandManager:
             self.error('Could not find sequence file reader!')
         if output is None:
             output = input + '.out'
-        parse_cmd = 'python %s %s > %s' % (file, input, output)
-        cm.exec_cmd(parse_cmd)
+        parse_cmd = 'python %s %s > %s' % (reader, input, output)
+        self.exec_cmd(parse_cmd)
 
