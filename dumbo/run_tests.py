@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-import mrmc
 import numpy
 import os
 import sys
+import time
+import subprocess
 
 verbose = True
 times = []
@@ -42,6 +43,7 @@ def parse_seq_file(input, output):
 
 # simple wrapper for running dumbo scripts with options provided as a list
 def run_dumbo(script, hadoop='', opts=[]):
+  return
   cmd = 'dumbo start ' + script
   if hadoop != '':
     cmd += ' -hadoop '
@@ -115,7 +117,10 @@ def check_rows(file, num_rows, comp_row):
 def print_result(test, success):
   print '-'*40
   print 'TEST: ' + test
-  print '    ' + 'SUCCESS' if success else 'FAILURE'
+  if success:
+    print '    ***SUCCESS***'
+  else:
+    print '    ***FAILURE***'
   print '-'*40  
 
 def TSMatMul_test():
@@ -127,35 +132,66 @@ def TSMatMul_test():
   result = 'TSMatMul_test'
   result_out = '%s/%s' % (out_dir, result)
 
-  scaled_ones(1000, 16, 4, name)
+  scaled_ones(1000, 16, 4, ts_mat)
   txt_to_mseq(ts_mat_out, ts_mat + '.mseq')
   scaled_identity(16, 2, 'tsmatmul-16-16')
+
+  return False
+
   run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat + '.mseq',
-                                            '-output ' + test_out,
+                                            '-output ' + result,
                                             '-mpath ' + small_mat_out,
                                             '-nummaptasks 1'])
 
   # we should only have one output file
   copy_cmd = 'hadoop fs -copyToLocal %s/part-00000 %s' % (result, result_out + '.mseq')
-  parse_seqfile(result_out, result_out + '.txt')
-  good_rows = row_by_row(result_out + '.txt', 1000, [8]*16)
+  exec_cmd(copy_cmd)
+  parse_seq_file(result_out, result_out + '.txt')
+  good_rows = check_rows(result_out + '.txt', 1000, [8]*16)
   return good_rows == 1000
 
-tests = {'TSMatMul_test': TSMatMul_test}
+def ARInv_test():
+  return False
+
+def tsqr_test():
+  return False
+
+def CholeskyQR_test():
+  return False
+
+def BtA_test():
+  return False
+
+def full_tsqr_test():
+  return False
+
+tests = {'TSMatMul': TSMatMul_test,
+         'ARInv': ARInv_test,
+         'tsqr': tsqr_test,
+         'CholeskyQR': CholeskyQR_test,
+         'BtA': BtA_test,
+         'full_tsqr': full_tsqr_test}
 
 failures = []
-for arg in sys.argv[1:]:
+args = sys.argv[1:]
+
+if len(args) > 0 and args[0] == 'all':
+  args = tests.keys()
+
+for arg in args:
+  if arg not in tests:
+    print 'unrecognized test: ' + arg
   try:
     result = tests[arg]()
-    print_result(arg, result)
-    if not result:
-      failures.append(arg)
   except:
-    print 'unrecognized test: ' + arg
+    result = False
+  print_result(arg, result)  
+  if not result:
+    failures.append(arg)
 
 if len(failures) == 0:
   print 'ALL TESTS PASSED'
 else:
-  print 'FAILED %d TESTS:' % len(failures)
+  print 'FAILED TESTS (%d total):' % len(failures)
   for failed_test in failures:
     print '     ' + failed_test
