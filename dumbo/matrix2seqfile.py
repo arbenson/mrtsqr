@@ -37,7 +37,7 @@ class Converter:
 if __name__ == '__main__':
     import dumbo
     import dumbo.lib
-    for 'use_tb_str' in sys.argv:
+    if 'use_tb_str' in sys.argv:
         use_tb_str = True
 
     dumbo.run(mapper,dumbo.lib.identityreducer)
