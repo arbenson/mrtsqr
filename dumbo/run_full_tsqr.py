@@ -8,7 +8,9 @@ See options:
      python run_full_tsqr.py --help
 
 Example usage:
-
+     python run_full_tsqr.py --input=A_800M_10.bseq \
+            --ncols=10 --svd=2 --schedule=100,100,100 \
+            --output=FULL_TESTING
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 
