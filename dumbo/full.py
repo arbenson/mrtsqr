@@ -48,8 +48,7 @@ class FullTSQRMap1(mrmc.MatrixHandler):
         else:
             assert(len(value) == self.ncols)
 
-        # TODO(arbenson): generalize to handle non-integer keys
-        self.keys.append(int(key))
+        self.keys.append(key)
         self.data.append(value)
         self.nrows += 1
         
@@ -69,13 +68,10 @@ class FullTSQRMap1(mrmc.MatrixHandler):
 
         yield ("R_%s" % str(self.mapper_id), self.mapper_id), QR[1].tolist()
 
-        for i, row in enumerate(Q):
-            Q[i].append(self.keys[i])
-            if i%50000 == 0:
-                self.counters['Q rows processed'] += 50000
-        
         flat_Q = [entry for row in Q for entry in row]
-        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), struct.pack('d'*len(flat_Q), *flat_Q)
+        val = (struct.pack('d'*len(flat_Q), *flat_Q), self.keys)
+        yield ("Q_%s" % str(self.mapper_id), self.mapper_id), val
+
 
     def __call__(self,data):
         self.collect_data(data)
@@ -232,18 +228,16 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
                 row = row.tolist()
                 yield self.row_keys[key][i], struct.pack('d'*len(row), *row)
 
-    def __call__(self,data):
-        for key1, matrix in data:
-            num_entries = len(matrix)/8
-            mat = struct.unpack('d'*num_entries, matrix)
-            mat = list(mat)
+    def __call__(self, data):
+        for key, val in data:
+            matrix, keys = val
+            num_entries = len(matrix) / 8
+            assert (num_entries % self.ncols == 0)
+            mat = list(struct.unpack('d'*num_entries, matrix))
             mat = numpy.mat(mat)
-            assert (num_entries % (self.ncols + 1) == 0)
-            mat = numpy.reshape(mat, (num_entries/(self.ncols + 1), self.ncols + 1))
-            for value in mat.tolist():
-                key2 = value[-1]
-                value = value[0:-1]
-                self.collect(key1, key2, value)
+            mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
+            for i, value in enumerate(mat.tolist()):
+                self.collect(key, keys[i], value)
 
         for key, val in self.close():
             yield key, val
