@@ -40,7 +40,8 @@ def starter(prog):
     mpath = prog.delopt('mpath')
     if not mpath:
         return "'mpath' not specified"
-    prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))    
+    prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))
+
     gopts.getstrkey('mpath', mpath)
 
     matname,matext = os.path.splitext(mat)
