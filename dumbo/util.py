@@ -30,21 +30,25 @@ def flatten(l, ltypes=(list, tuple)):
     return ltype(l)
 
 def parse_matrix_txt(mpath):
+    try:
         f = open(mpath, 'r')
-        data = []
-        for line in f:
-            if len(line) > 5:
-                ind2 = line.rfind(')')
-                line = line[ind2+3:]
-                line = line.lstrip('[').rstrip().rstrip(']')
-                try:
-                    line2 = line.split(',')
-                    line2 = [float(v) for v in line2]
-                except:
-                    line2 = line.split()
-                    line2 = [float(v) for v in line2]
-                yield line2
-        f.close()
+    except:
+        # We may be expecting only the file to be distributed
+        # with the script
+        f = open(mpath.split('/')[-1], 'r')        
+    data = []
+    for line in f:
+        ind = line.rfind(')')
+        if ind != -1:
+            line = line[ind+1:]
+        line = line.strip().rstrip().lstrip('[').rstrip(']')
+        line2 = line.split(',')
+        if len(line2) == 1:
+            line2 = line.split()
+        line2 = [float(v) for v in line2]
+        yield line2
+
+    f.close()
 
 class GlobalOptions:
     """ A class to manage passing options to the actual jobs that run. 
@@ -153,9 +157,13 @@ class CommandManager:
             cmd += opt
         self.exec_cmd(cmd)
 
-    def copy_from_hdfs(self, input, output):
+    def copy_from_hdfs(self, inp, outp):
         copy_cmd = 'hadoop fs -copyToLocal ' \
-                   + '%s/part-00000 %s' % (input, output)
+                   + '%s/part-00000 %s' % (inp, outp)
+        self.exec_cmd(copy_cmd)
+
+    def copy_to_hdfs(self, inp, outp):
+        copy_cmd = 'hadoop fs -copyFromLocal %s %s' % (inp, outp)
         self.exec_cmd(copy_cmd)
 
     # parse a sequence file
