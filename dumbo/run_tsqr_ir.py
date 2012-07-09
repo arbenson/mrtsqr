@@ -16,11 +16,11 @@ Copyright (c) 2012
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 """
 
-import sys
-import time
-import subprocess
-import util
 from optparse import OptionParser
+import os
+import subprocess
+import sys
+import util
 
 # Parse command-line options
 #
@@ -53,36 +53,34 @@ if out == '':
 sched = options.sched
 try:
   sched = [int(s) for s in sched.split(',')]
-  sched[2]
+  sched[1]
 except:
   cm.error('invalid schedule provided')
 
 
-def tsqr_arinv_pipeline(in1, out):
+def tsqr_arinv_iter(in1, out):
     blocksize = 100
     
     out1 = out + '_qrr'
     cm.run_dumbo('tsqr.py', 'icme-hadoop1', ['-mat ' + in1,
-                                             '-blocksize' + str(blocksize),
-                                             '-output', + out1,
+                                             '-blocksize ' + str(blocksize),
+                                             '-output ' + out1,
                                              '-reduce_schedule 20,1'])
-    cmd.output('running tsqr...')
-
-    t0 = time.time()
-    subprocess.call(cmd1, shell=True)
-    times.append(time.time() - t0)
+    cm.output('running tsqr...')
 
     R_file = out1 + '_R'
+    if os.path.exists(R_file):
+      os.remove(R_file)
     cm.copy_from_hdfs(out1, R_file)
     cm.parse_seq_file(R_file)
 
     out2 = out + '_Q'
     cm.run_dumbo('ARInv.py', 'icme-hadoop1', ['-mat ' + in1,
-                                              'blocksize ' + str(blocksize)                                  
+                                              '-blocksize ' + str(blocksize),          
                                               '-output ' + out2,
                                               '-rpath ' + R_file + '.out'])
 
-tsqr_arinv_pipeline(in1, out)
-tsqr_arinv_pipeline(out + '_Q', out + '_IR')
+tsqr_arinv_iter(in1, out)
+tsqr_arinv_iter(out + '_Q', out + '_IR')
 
 cm.output('times: ' + str(cm.times))
