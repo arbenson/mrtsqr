@@ -2,6 +2,10 @@
 
 import numpy
 import os
+import subprocess
+import sys
+import time
+import util
 
 out_dir = 'tests-out'
 try:
@@ -9,45 +13,7 @@ try:
 except:
   pass
 
-verbose = True
-times = []
-split = '-'*60
-
-# print error messages and exit with failure
-def error(msg):
-  print msg
-  sys.exit(1)
-
-# simple wrapper around printing with verbose option
-def output(msg):
-  if verbose:
-    print msg
-
-# simple wrapper for executing command line programs
-def exec_cmd(cmd):
-  output('(command is: %s)' % (cmd))
-  output(split)
-  t0 = time.time()
-  retcode = subprocess.call(cmd,shell=True)
-  times.append(time.time() - t0)
-  # TODO(arbenson): make it more obvious when something fails
-  return retcode
-
-# simple wrapper for parsing a sequence file
-def parse_seq_file(inp):
-  parse_cmd = 'python hyy-python-hadoop/examples/SequenceFileReader.py %s > %s' % (inp, inp + '.out')
-  exec_cmd(parse_cmd)
-
-# simple wrapper for running dumbo scripts with options provided as a list
-def run_dumbo(script, hadoop='', opts=[]):
-  cmd = 'dumbo start ' + script
-  if hadoop != '':
-    cmd += ' -hadoop '
-    cmd += hadoop
-  for opt in opts:
-    cmd += ' '
-    cmd += opt
-  exec_cmd(cmd)
+cm = util.CommandManager()
 
 # deal with annoying new lines
 def format_row(row):
@@ -57,29 +23,164 @@ def format_row(row):
     val_str += ' '
   return val_str[:-1]
 
-def scaled_ones(nrows, ncols, scale, name):
-  f = open(out_dir + '/' + name, 'w')
+def scaled_ones(nrows, ncols, scale, file):
+  f = open(file, 'w')
   A = numpy.ones((nrows, ncols))*scale
   for row in A:
     f.write(format_row(row) + '\n')
   f.close()
 
-def scaled_identity(nrows, scale, name):
-  f = open(out_dir + '/' + name, 'w')
+def scaled_identity(nrows, scale, file):
+  f = open(file, 'w')
   A = numpy.identity(nrows)*scale
   for row in A:
     f.write(format_row(row) + '\n')
   f.close()
 
-def txt_to_mseq(name):
-  cmd = 'hadoop fs -copyFromLocal %s %s' (name, name)
+def orthogonal(nrows, ncols, file):
+  f = open(file, 'w')
+  Q = numpy.linalg.qr(numpy.random.randn(nrows, ncols))[0]
+  for row in Q:
+    f.write(format_row(row) + '\n')
+  f.close()
 
+def txt_to_mseq(input, output):
+  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
+                                                     '-output ' + output,
+                                                     '-nummaptasks 10'])
 
-def txt_to_bseq(name):
+def txt_to_bseq(input, output):
+  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
+                                                     '-output ' + output,
+                                                     'use_tb_str',
+                                                     '-nummaptasks 10'])
+
+def check_rows(file, num_rows, comp_row):
+  good_rows = 0
+  for row in util.parse_matrix_txt(file):
+    if len(row) != len(comp_row):
+      continue
+    good = True
+    for i, val in enumerate(comp_row):
+      if val != comp_row[i]:
+        good = False
+        break
+      if good:
+        good_rows += 1
+  return good_rows
+
+def print_result(test, success, output=None):
+  print '-'*40
+  print 'TEST: ' + test
+  if success:
+    print '    ***SUCCESS***'
+  else:
+    print '    ***FAILURE***'
+  if output is not None:
+    print output
+  print '-'*40  
 
 def TSMatMul_test():
-  name = 'tsmatmul-1000-16'
-  scaled_ones(1000, 16, 4, 'tsmatmul-1000-16')
-  scaled_identity(16, 2, 'tsmatmul-16-16')
+  ts_mat = 'tsmatmul-1000-16'
+  # TODO(arbenson): cleaner way to handle out_dir
+  ts_mat_out = '%s/%s' % (out_dir, ts_mat)
+  small_mat = 'tsmatmul-16-16'
+  small_mat_out = '%s/%s' % (out_dir, small_mat)
+  result = 'TSMatMul_test'
+  result_out = '%s/%s' % (out_dir, result)
+
+  if not os.path.exists(ts_mat_out):
+    scaled_ones(1000, 16, 4, ts_mat_out)
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    txt_to_mseq(ts_mat_out, ts_mat + '.mseq')
+    
+  if not os.path.exists(small_mat_out):
+    scaled_identity(16, 2, small_mat_out)
+
+  cm.run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat + '.mseq',
+                                               '-output ' + result,
+                                               '-mpath ' + small_mat_out,
+                                               '-nummaptasks 1'])
+
+  # we should only have one output file
+  cm.copy_from_hdfs(result, result_out + '.mseq')
+  cm.parse_seq_file(result_out, result_out + '.txt')
+  good_rows = check_rows(result_out + '.txt', 1000, [8]*16)
+  return good_rows == 1000
+
+def ARInv_test():
+  return False
+
+def tsqr_test():
+  return False
+
+def CholeskyQR_test():
+  return False
+
+def BtA_test():
+  return False
+
+def full_tsqr_test():
+  mat = 'Q-2000-20'
+  mat_out = '%s/%s' % (out_dir, mat)
+
+  if not os.path.exists(mat_out):
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    orthogonal(2000, 20, mat_out)
+    txt_to_mseq(mat_out, mat + '.mseq')
 
 
+  out = 'full_tsqr_test_out'
+
+  # compute full TSQR with SVD
+  cmd = 'python run_full_tsqr.py'
+  cmd += ' --input=' + mat + '.mseq'
+  cmd += ' --output=' + out
+  cmd += ' --ncols=20'
+  cmd += ' --schedule=12,12,12'
+  cmd += ' --svd=2'
+
+  # copy Sigma, V^t locally
+
+  # make sure that Sigma, V^t are diagonal ones
+
+  return False
+
+def tsqr_ir_test():
+  return False
+
+tests = {'TSMatMul':        TSMatMul_test,
+         'ARInv':           ARInv_test,
+         'tsqr':            tsqr_test,
+         'CholeskyQR':      CholeskyQR_test,
+         'BtA':             BtA_test,
+         'full_tsqr':       full_tsqr_test,
+         'tsqr_ir':         tsqr_ir_test}
+
+failures = []
+args = sys.argv[1:]
+
+if len(args) > 0 and args[0] == 'all':
+  args = tests.keys()
+
+for arg in args:
+  if arg not in tests:
+    print 'unrecognized test: ' + arg
+    continue
+  try:
+    result = tests[arg]()
+  except:
+    result = False
+  print_result(arg, result)
+
+  if not result:
+    failures.append(arg)
+
+if len(failures) == 0:
+  print 'ALL TESTS PASSED'
+else:
+  print 'FAILED TESTS (%d total):' % len(failures)
+  for failed_test in failures:
+    print '     ' + failed_test
