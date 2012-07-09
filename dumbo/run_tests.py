@@ -30,43 +30,45 @@ def scaled_ones(nrows, ncols, scale, file):
     f.write(format_row(row) + '\n')
   f.close()
 
-def scaled_identity(nrows, scale, file):
-  f = open(file, 'w')
+def scaled_identity(nrows, scale, f):
+  f = open(f, 'w')
   A = numpy.identity(nrows)*scale
   for row in A:
     f.write(format_row(row) + '\n')
   f.close()
 
-def orthogonal(nrows, ncols, file):
-  f = open(file, 'w')
+def orthogonal(nrows, ncols, f):
+  f = open(f, 'w')
   Q = numpy.linalg.qr(numpy.random.randn(nrows, ncols))[0]
   for row in Q:
     f.write(format_row(row) + '\n')
   f.close()
 
-def txt_to_mseq(input, output):
-  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
-                                                     '-output ' + output,
+def txt_to_mseq(inp, outp):
+  cm.copy_to_hdfs(inp, inp)
+  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-input ' + inp,
+                                                     '-output ' + outp,
                                                      '-nummaptasks 10'])
 
-def txt_to_bseq(input, output):
-  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-mat ' + input,
-                                                     '-output ' + output,
+def txt_to_bseq(inp, outp):
+  cm.copy_to_hdfs(inp, inp)
+  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-input ' + inp,
+                                                     '-output ' + outp,
                                                      'use_tb_str',
                                                      '-nummaptasks 10'])
 
-def check_rows(file, num_rows, comp_row):
+def check_rows(f, comp_row):
   good_rows = 0
-  for row in util.parse_matrix_txt(file):
+  for row in util.parse_matrix_txt(f):
     if len(row) != len(comp_row):
       continue
     good = True
-    for i, val in enumerate(comp_row):
-      if val != comp_row[i]:
+    for i, val in enumerate(row):
+      if int(val) != int(comp_row[i]):
         good = False
         break
-      if good:
-        good_rows += 1
+    if good:
+      good_rows += 1
   return good_rows
 
 def print_result(test, success, output=None):
@@ -81,47 +83,53 @@ def print_result(test, success, output=None):
   print '-'*40  
 
 def TSMatMul_test():
-  ts_mat = 'tsmatmul-1000-16'
+  ts_mat = 'tsmatmul-1000-8'
   # TODO(arbenson): cleaner way to handle out_dir
   ts_mat_out = '%s/%s' % (out_dir, ts_mat)
-  small_mat = 'tsmatmul-16-16'
+  small_mat = 'tsmatmul-8-8'
   small_mat_out = '%s/%s' % (out_dir, small_mat)
   result = 'TSMatMul_test'
   result_out = '%s/%s' % (out_dir, result)
 
   if not os.path.exists(ts_mat_out):
-    scaled_ones(1000, 16, 4, ts_mat_out)
+    scaled_ones(1000, 8, 4, ts_mat_out)
     # TODO(arbenson): Check HDFS instead of just assuming that the local
     # and HDFS copies are consistent
     txt_to_mseq(ts_mat_out, ts_mat + '.mseq')
     
   if not os.path.exists(small_mat_out):
-    scaled_identity(16, 2, small_mat_out)
+    scaled_identity(8, 2, small_mat_out)
 
   cm.run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat + '.mseq',
-                                               '-output ' + result,
+                                               '-output ' + result_out,
                                                '-mpath ' + small_mat_out,
                                                '-nummaptasks 1'])
 
   # we should only have one output file
-  cm.copy_from_hdfs(result, result_out + '.mseq')
-  cm.parse_seq_file(result_out, result_out + '.txt')
-  good_rows = check_rows(result_out + '.txt', 1000, [8]*16)
+  cm.copy_from_hdfs(result_out, result_out + '.mseq')
+  cm.parse_seq_file(result_out + '.mseq', result_out + '.txt')
+  good_rows = check_rows(result_out + '.txt', [8]*8)
   return good_rows == 1000
 
 def ARInv_test():
+  # TODO(arbenson): finish this test
   return False
 
 def tsqr_test():
+  # TODO(arbenson): finish this test
   return False
 
 def CholeskyQR_test():
+  # TODO(arbenson): finish this test
   return False
 
 def BtA_test():
+  # TODO(arbenson): finish this test
   return False
 
 def full_tsqr_test():
+  # TODO(arbenson): finish this test
+  return False
   mat = 'Q-2000-20'
   mat_out = '%s/%s' % (out_dir, mat)
 
@@ -170,6 +178,7 @@ for arg in args:
     print 'unrecognized test: ' + arg
     continue
   try:
+    print 'RUNNING TEST: ' + arg
     result = tests[arg]()
   except:
     result = False
