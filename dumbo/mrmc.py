@@ -186,7 +186,7 @@ class SerialTSQR(MatrixHandler):
     def close(self):
         self.counters['rows processed'] += self.nrows % 50000
         self.compress()
-        for i,row in enumerate(self.data):
+        for i, row in enumerate(self.data):
             key = numpy.random.randint(0)
             # If this is not the final output, we can use a TypedBytes String format
             if not self.isfinal:
