@@ -59,7 +59,7 @@ except:
 
 
 def tsqr_arinv_iter(in1, out):
-    blocksize = 100
+    blocksize = 10
     
     out1 = out + '_qrr'
     cm.run_dumbo('tsqr.py', 'icme-hadoop1', ['-mat ' + in1,

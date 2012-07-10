@@ -184,10 +184,10 @@ class SerialTSQR(MatrixHandler):
             self.counters['rows processed'] += 50000
 
     def close(self):
-        self.counters['rows processed'] += self.nrows
+        self.counters['rows processed'] += self.nrows % 50000
         self.compress()
         for i,row in enumerate(self.data):
-            key = self.keyfunc(i)
+            key = numpy.random.randint(0)
             # If this is not the final output, we can use a TypedBytes String format
             if not self.isfinal:
                 # If we already created the unpacker, then we can use it for efficiency
