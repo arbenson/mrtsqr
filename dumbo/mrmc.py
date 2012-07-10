@@ -144,7 +144,7 @@ class SerialTSQR(MatrixHandler):
     
     def QR(self):
         A = numpy.array(self.data)
-        return numpy.linalg.qr(A, 'r')
+        return numpy.linalg.qr(A,'r')
     
     def compress(self):
         # Compute a QR factorization on the data accumulated so far.
@@ -161,15 +161,15 @@ class SerialTSQR(MatrixHandler):
         for row in R:
             self.data.append(util.array2list(row))
                         
-    def collect(self, key, value):
-        if self.ncols is None:
+    def collect(self,key,value):
+        if self.ncols == None:
             self.ncols = len(value)
             print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
 
         if len(value) != self.ncols:
-            # TODO(arbenson): add a "liberal" flag that 
             raise DataFormatException(
                 'Length of value did not match number of columns')
+
 
         self.data.append(value)
         self.nrows += 1
@@ -186,15 +186,15 @@ class SerialTSQR(MatrixHandler):
     def close(self):
         self.counters['rows processed'] += self.nrows % 50000
         self.compress()
-        for i, row in enumerate(self.data):
-            key = numpy.random.randint(0)
+        for i,row in enumerate(self.data):
+            key = numpy.random.randint(0, 4000000000)
             # If this is not the final output, we can use a TypedBytes String format
             if not self.isfinal:
                 # If we already created the unpacker, then we can use it for efficiency
                 if self.unpacker is not None:
                     yield key, self.unpacker.pack(*row)
                 else:
-                    yield key, struct.pack('d'*len(row), *row)
+                    yield key, struct.pack('d' * len(row), *row)
             else:
                 yield key, row
 
@@ -208,6 +208,7 @@ class SerialTSQR(MatrixHandler):
         # finally, output data
         for key, val in self.close():
             yield key, val
+
 
 
 """
@@ -367,7 +368,7 @@ class AtA(MatrixHandler):
         if self.A_curr is not None:
             for ind, row in enumerate(self.A_curr.getA()):
                 r = util.array2list(row)
-                yield ind, struct.pack('d'*len(r), *r)
+                yield ind, struct.pack('d' * len(r), *r)
 
 
     def __call__(self, data):
