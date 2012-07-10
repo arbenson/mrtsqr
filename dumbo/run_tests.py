@@ -154,8 +154,6 @@ def full_tsqr_test():
 
   # make sure that Sigma, V^t are diagonal ones
 
-  return False
-
 def tsqr_ir_test():
   return False
 
