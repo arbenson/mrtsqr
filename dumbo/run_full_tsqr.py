@@ -40,6 +40,8 @@ parser.add_option('-n', '--ncols', type='int', dest='ncols', default=0,
 parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
                   help='comma separated list of number of map tasks to use for'
                        + ' the three jobs')
+parser.add_option('-H', '--hadoop', dest='hadoop', default='',
+                  help='name of hadoop for Dumbo')
 
 # TODO(arbenson): add option that computes singular vectors but not the Q in
 # QR.  This will be the go-to option for computing the SVD of a
@@ -79,18 +81,20 @@ try:
 except:
   cm.error('invalid schedule provided')
 
+hadoop = options.hadoop
+
 
 # Now run the MapReduce jobs
 out1 = out + '_1'
-cm.run_dumbo('full1.py', 'icme-hadoop1', ['-mat ' + in1, '-output ' + out1,
-                                          '-nummaptasks %d' % sched[0],
-                                          '-libjar feathers.jar'])
+cm.run_dumbo('full1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
+                                  '-nummaptasks %d' % sched[0],
+                                  '-libjar feathers.jar'])
 
 out2 = out + '_2'
-cm.run_dumbo('full2.py', 'icme-hadoop1', ['-mat ' + out1 + '/R_*', '-output ' + out2,
-                                          '-svd ' + str(svd_opt),
-                                          '-nummaptasks %d' % sched[1],
-                                          '-libjar feathers.jar'])
+cm.run_dumbo('full2.py', hadoop, ['-mat ' + out1 + '/R_*', '-output ' + out2,
+                                  '-svd ' + str(svd_opt),
+                                  '-nummaptasks %d' % sched[1],
+                                  '-libjar feathers.jar'])
 
 # Q2 file needs parsing before being distributed to phase 3
 Q2_file = out2 + '_Q2.txt'
@@ -105,11 +109,11 @@ cm.copy_from_hdfs(out2 + '/Q2', Q2_file)
 cm.parse_seq_file(Q2_file)
 
 in3 = out1 + '/Q_*'
-cm.run_dumbo('full3.py', 'icme-hadoop1', ['-mat ' + in3, '-output ' + out + '_3',
-                                          '-ncols ' + str(ncols),
-                                          '-q2path ' + Q2_file + '.out',
-                                          '-nummaptasks %d' % sched[2],
-                                          '-libjar feathers.jar'])
+cm.run_dumbo('full3.py', hadoop, ['-mat ' + in3, '-output ' + out + '_3',
+                                  '-ncols ' + str(ncols),
+                                  '-q2path ' + Q2_file + '.out',
+                                  '-nummaptasks %d' % sched[2],
+                                  '-libjar feathers.jar'])
 
 if svd_opt == 2:
   small_U_file = out2 + '_U.txt'
@@ -125,8 +129,8 @@ if svd_opt == 2:
   # We need an addition TS matrix multiply to get the left singular vectors
   out4 = out + '_4'
 
-  cm.run_dumbo ('TSMatMul.py', 'icme-hadoop1', ['-mat ' + out + '_3', '-output ' + out4,
-                                                '-mpath ' + small_U_file + '.out',
-                                                '-nummaptasks %d' % sched[2]])
+  cm.run_dumbo ('TSMatMul.py', hadoop, ['-mat ' + out + '_3', '-output ' + out4,
+                                        '-mpath ' + small_U_file + '.out',
+                                        '-nummaptasks %d' % sched[2]])
 
 cm.output('times: ' + str(cm.times))

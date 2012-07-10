@@ -34,6 +34,8 @@ parser.add_option('-o', '--output', dest='out', default='',
 parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
                   help='comma separated list of number of map tasks to use for'
                        + ' the three jobs')
+parser.add_option('-H', '--hadoop', dest='hadoop', default='',
+                  help='name of hadoop for Dumbo')
 parser.add_option('-q', '--quiet', action='store_false', dest='verbose',
                   default=True, help='turn off some statement printing')
 
@@ -57,15 +59,17 @@ try:
 except:
   cm.error('invalid schedule provided')
 
+hadoop = options.hadoop
+
 
 def tsqr_arinv_iter(in1, out):
     blocksize = 10
     
     out1 = out + '_qrr'
-    cm.run_dumbo('tsqr.py', 'icme-hadoop1', ['-mat ' + in1,
-                                             '-blocksize ' + str(blocksize),
-                                             '-output ' + out1,
-                                             '-reduce_schedule 20,1'])
+    cm.run_dumbo('tsqr.py', hadoop, ['-mat ' + in1,
+                                     '-blocksize ' + str(blocksize),
+                                     '-output ' + out1,
+                                     '-reduce_schedule 20,1'])
     cm.output('running tsqr...')
 
     R_file = out1 + '_R'
@@ -75,10 +79,10 @@ def tsqr_arinv_iter(in1, out):
     cm.parse_seq_file(R_file)
 
     out2 = out + '_Q'
-    cm.run_dumbo('ARInv.py', 'icme-hadoop1', ['-mat ' + in1,
-                                              '-blocksize ' + str(blocksize),          
-                                              '-output ' + out2,
-                                              '-rpath ' + R_file + '.out'])
+    cm.run_dumbo('ARInv.py', hadoop, ['-mat ' + in1,
+                                      '-blocksize ' + str(blocksize),          
+                                      '-output ' + out2,
+                                      '-rpath ' + R_file + '.out'])
 
 tsqr_arinv_iter(in1, out)
 tsqr_arinv_iter(out + '_Q', out + '_IR')
