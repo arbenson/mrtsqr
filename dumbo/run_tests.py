@@ -2,6 +2,7 @@
 
 import numpy
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -48,14 +49,19 @@ def txt_to_mseq(inp, outp):
   cm.copy_to_hdfs(inp, inp)
   cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-input ' + inp,
                                                      '-output ' + outp,
-                                                     '-nummaptasks 10'])
+                                                     '-nummaptasks 1'])
 
 def txt_to_bseq(inp, outp):
   cm.copy_to_hdfs(inp, inp)
   cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-input ' + inp,
                                                      '-output ' + outp,
                                                      'use_tb_str',
-                                                     '-nummaptasks 10'])
+                                                     '-nummaptasks 1'])
+
+def clean():
+  if os.path.exists(out_dir):
+    shutil.rmtree(out_dir)
+  cm.exec_cmd('hadoop fs -rmr ' + out_dir)
 
 def check_rows(f, comp_row):
   good_rows = 0
@@ -95,12 +101,12 @@ def TSMatMul_test():
     scaled_ones(1000, 8, 4, ts_mat_out)
     # TODO(arbenson): Check HDFS instead of just assuming that the local
     # and HDFS copies are consistent
-    txt_to_mseq(ts_mat_out, ts_mat + '.mseq')
+    txt_to_mseq(ts_mat_out, ts_mat_out + '.mseq')
     
   if not os.path.exists(small_mat_out):
     scaled_identity(8, 2, small_mat_out)
 
-  cm.run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat + '.mseq',
+  cm.run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat_out + '.mseq',
                                                '-output ' + result_out,
                                                '-mpath ' + small_mat_out,
                                                '-nummaptasks 1'])
@@ -112,8 +118,33 @@ def TSMatMul_test():
   return good_rows == 1000
 
 def ARInv_test():
-  # TODO(arbenson): finish this test
-  return False
+  ts_mat = 'arinv-2000-20'
+  # TODO(arbenson): cleaner way to handle out_dir
+  ts_mat_out = '%s/%s' % (out_dir, ts_mat)
+  small_mat = 'arinv-20-20'
+  small_mat_out = '%s/%s' % (out_dir, small_mat)
+  result = 'ARInv_test'
+  result_out = '%s/%s' % (out_dir, result)
+
+  if not os.path.exists(ts_mat_out):
+    scaled_ones(2000, 20, 16, ts_mat_out)
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    txt_to_mseq(ts_mat_out, ts_mat_out + '.mseq')
+    
+  if not os.path.exists(small_mat_out):
+    scaled_identity(20, 2, small_mat_out)
+
+  cm.run_dumbo('ARInv.py', 'icme-hadoop1', ['-mat ' + ts_mat_out + '.mseq',
+                                               '-output ' + result_out,
+                                               '-rpath ' + small_mat_out,
+                                               '-nummaptasks 1'])
+
+  # we should only have one output file
+  cm.copy_from_hdfs(result_out, result_out + '.mseq')
+  cm.parse_seq_file(result_out + '.mseq', result_out + '.txt')
+  good_rows = check_rows(result_out + '.txt', [8]*20)
+  return good_rows == 2000
 
 def tsqr_test():
   # TODO(arbenson): finish this test
@@ -168,8 +199,12 @@ tests = {'TSMatMul':        TSMatMul_test,
 failures = []
 args = sys.argv[1:]
 
-if len(args) > 0 and args[0] == 'all':
+if len(args) == 1 and args[0] == 'all':
   args = tests.keys()
+
+if len(args) == 1 and args[0] == 'clean':
+  clean()
+  sys.exit(0)
 
 for arg in args:
   if arg not in tests:
