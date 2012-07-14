@@ -305,22 +305,20 @@ class Cholesky(dumbo.backends.common.MapRedBase):
     def __call__(self, data):
         for key,values in data:
             for value in values:
-                self.data[key] += numpy.array(list(struct.unpack('d' * self.ncols,
-                                                                 value)))
+                # TODO(arbenson): handle typedbytes string here
+                self.data[key] += numpy.array(value)
                 
         for key, val in self.close():
             yield key, val
 
 
 class AtA(MatrixHandler):
-    def __init__(self, blocksize=3, isreducer=False, ncols=10):
+    def __init__(self, blocksize=3, ncols=10):
         MatrixHandler.__init__(self)        
         self.blocksize=blocksize
-        self.isreducer=isreducer
         self.data = []
         self.A_curr = None
         self.row = None
-        self.ncols = ncols
     
     def compress(self):
         # Compute AtA on the data accumulated so far
@@ -341,7 +339,7 @@ class AtA(MatrixHandler):
             self.A_curr = self.A_curr + A_flush
 
     
-    def collect(self,key,value):
+    def collect(self, key, value):
         if self.ncols == None:
             self.ncols = len(value)
             print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
@@ -358,37 +356,22 @@ class AtA(MatrixHandler):
             self.compress()
             
         # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
+        if self.nrows % 50000 == 0:
             self.counters['rows processed'] += 50000
 
 
     def close(self):
-        self.counters['rows processed'] += self.nrows%50000
+        self.counters['rows processed'] += self.nrows % 50000
         self.compress()
         if self.A_curr is not None:
             for ind, row in enumerate(self.A_curr.getA()):
-                r = util.array2list(row)
-                yield ind, struct.pack('d' * len(r), *r)
-
+                yield ind, util.array2list(row)
 
     def __call__(self, data):
-        if self.isreducer == False:
-            for key,value in data:
-                self.collect_data_instance(key, value)
-        else:
-            for key,values in data:
-                for value in values:
-                    val = list(struct.unpack('d' * self.ncols, value))
-                    if self.row == None:
-                        self.row = numpy.array(val)
-                    else:
-                        self.row = self.row + numpy.array(val)
-                yield key, struct.pack('d' * len(self.row), *self.row)
-
-        # finally, output data
-        if self.isreducer == False:
-            for key,val in self.close():
-                yield key, val
+        for key,value in data:
+            self.collect_data_instance(key, value)
+        for key,val in self.close():
+            yield key, val
 
 
 class BtAReducer(MatrixHandler):
@@ -488,6 +471,7 @@ class BtAMapper:
 
 
 def ArraySumReducer(key, values):
+    # TODO(arbenson): handle typedbytes string format here
     for j, val in enumerate(values):
         if j == 0: 
             arr = val

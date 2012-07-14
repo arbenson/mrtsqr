@@ -39,13 +39,12 @@ def runner(job):
         else:
             nreducers = int(part)
             if i == 0:
-                mapper = mrmc.AtA(blocksize=blocksize, isreducer=False,
-                                  ncols=ncols)
-                reducer = mrmc.AtA(blocksize=blocksize, isreducer=True,
-                                   ncols=ncols)
+                mapper = mrmc.AtA(blocksize=blocksize)
+                reducer = mrmc.ArraySumReducer
             else:
                 mapper = mrmc.ID_MAPPER
                 reducer = mrmc.Cholesky(ncols=ncols)
+                nreducers = 1
             job.additer(mapper=mapper, reducer=reducer,
                         opts=[('numreducetasks', str(nreducers))])
 
