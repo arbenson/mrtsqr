@@ -180,7 +180,12 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.q2path = q2path
 
     def parse_q2(self):
-        f = open(self.q2path)
+        try:
+            f = open(self.q2path, 'r')
+        except:
+            # We may be expecting only the file to be distributed
+            # with the script
+            f = open(self.q2path.split('/')[-1], 'r')        
         for line in f:
             if len(line) > 5:
                 ind1 = line.find('(')
