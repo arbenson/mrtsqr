@@ -157,7 +157,9 @@ class CommandManager:
             cmd += opt
         self.exec_cmd(cmd)
 
-    def copy_from_hdfs(self, inp, outp):
+    def copy_from_hdfs(self, inp, outp, delete=True):
+        if delete and os.path.exists(outp):
+          os.remove(outp)
         copy_cmd = 'hadoop fs -copyToLocal ' \
                    + '%s/part-00000 %s' % (inp, outp)
         self.exec_cmd(copy_cmd)
