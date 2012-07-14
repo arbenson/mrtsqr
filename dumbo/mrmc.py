@@ -388,17 +388,16 @@ class BtAReducer(MatrixHandler):
 
     def compress(self):
         # Compute BtA on the data accumulated so far
-        if self.ncols is None:
+        if self.ncols is None or len(self.dataB) != len(self.dataA):
             return
-        # Wait until we get both aligned
-        if len(self.dataB) != len(self.dataA):
-            return       
+
         t0 = time.time()
         B_mat = numpy.mat(self.dataB)
         A_mat = numpy.mat(self.dataA)
         BtA_flush = B_mat.T * A_mat
         dt = time.time() - t0
         self.counters['numpy time (millisecs)'] += int(1000 * dt)
+        self.counters['BtA Compressions'] += 1
 
         # reset data and add flushed update to local copy
         self.dataB = []
@@ -422,12 +421,11 @@ class BtAReducer(MatrixHandler):
         self.nrows += 1
         
         if len(subset) > self.blocksize * self.ncols:
-            self.counters['BtA Compressions'] += 1
             # compress the data
             self.compress()
             
         # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
+        if self.nrows % 50000 == 0:
             self.counters['rows processed'] += 50000
 
     def close(self):
@@ -454,19 +452,22 @@ class BtAReducer(MatrixHandler):
             yield key, val
 
 
-class BtAMapper:
+class BtAMapper(dumbo.backends.common.MapRedBase):
     opts = [('addpath','yes')]
     def __init__(self, B_id):
         self.B_id = B_id
 
     def __call__(self,key_,value):
         path = key_[0]
+        print >>sys.stderr, 'path is: ' + str(path)
         key = key_[1]
         if path.find(self.B_id) == -1:
             # this is A
+            self.counters['A values'] += 1
             yield key, ('A', value)
         else:
             # this is B
+            self.counters['B values'] += 1
             yield key, ('B', value)
 
 

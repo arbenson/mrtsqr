@@ -9,14 +9,13 @@ import time
 import util
 import math
 
+# Initialization
 out_dir = 'tests-out'
 try:
   os.mkdir(out_dir)
 except:
   pass
-
 out_file = lambda f: out_dir + '/' + f
-
 cm = util.CommandManager()
 
 # deal with annoying new lines
@@ -68,6 +67,7 @@ def clean():
 
 def check_diag_ones(f, nrows):
   abs_int = lambda x: int(round(math.fabs(x)))
+  i = 0
   for i, row in enumerate(util.parse_matrix_txt(f)):
     print row
     if len(row) != nrows:
@@ -83,6 +83,9 @@ def check_diag_ones(f, nrows):
         print 'Expected absolute value of 0 for entry (%d, %d) of value %d' % (
             i, j, abs_int(row[j]))
         return False
+  if i + 1 != nrows:
+    print 'Expected %d rows but only read %d.' % (nrows, i)
+    return False
   return True
 
 def check_rows(f, comp_row):
@@ -234,24 +237,45 @@ def CholeskyQR_test():
   return check_diag_ones(result_out_txt, ncols)
 
 def BtA_test():
-  # TODO(arbenson): finish this test
-  return False
+  nrows = 800
+  ncols = 6
+  ts_mat = 'bta-B_matrix-%d-%d' % (nrows, ncols)
+  ts_mat_out = out_file(ts_mat)
+  ts_mat_out_mseq = ts_mat_out + '.mseq'
+  ts_mat_copy = 'bta-A_matrix-%d-%d' % (nrows, ncols)
+  ts_mat_copy_out_mseq = out_file(ts_mat_copy) + '.mseq'
 
-def full_tsqr_test():
-  # TODO(arbenson): finish this test
-  return False
+  result = 'bta_test'
+  result_out = out_file(result)
+  result_out_mseq = result_out + '.mseq'
+  result_out_txt = result_out + '.txt'
 
-def tsqr_ir_test():
-  # TODO(arbenson): finish this test
-  return False
+  if not os.path.exists(ts_mat_out):
+    orthogonal(nrows, ncols, ts_mat_out)
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    txt_to_mseq(ts_mat_out, ts_mat_out_mseq)
+    cm.exec_cmd('hadoop fs -cp %s %s' % (ts_mat_out_mseq, ts_mat_copy_out_mseq))
 
+  cm.run_dumbo('BtA.py', 'icme-hadoop1', ['-matB ' + ts_mat_out_mseq,
+                                          '-matA ' + ts_mat_copy_out_mseq,
+                                          '-output ' + result_out,
+                                          '-B_id ' + 'B_matrix',
+                                          '-blocksize 10',
+                                          '-reduce_schedule 2',
+                                          '-nummaptasks 4'])
+
+  # we should only have one output file
+  cm.copy_from_hdfs(result_out, result_out_mseq)
+  cm.parse_seq_file(result_out_mseq, result_out_txt)
+  return check_diag_ones(result_out_txt, ncols)
+
+# TODO(arbenson): Add tests for run_full_tsqr.py and run_tsqr_ir.py.
 tests = {'TSMatMul':        TSMatMul_test,
          'ARInv':           ARInv_test,
          'tsqr':            tsqr_test,
          'CholeskyQR':      CholeskyQR_test,
-         'BtA':             BtA_test,
-         'full_tsqr':       full_tsqr_test,
-         'tsqr_ir':         tsqr_ir_test}
+         'BtA':             BtA_test}
 
 failures = []
 args = sys.argv[1:]
