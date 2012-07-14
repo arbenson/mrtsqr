@@ -205,8 +205,33 @@ def tsqr_test():
   return check_diag_ones(result_out_txt, ncols)
 
 def CholeskyQR_test():
-  # TODO(arbenson): finish this test
-  return False
+  nrows = 800
+  ncols = 6
+  ts_mat = 'chol-%d-%d' % (nrows, ncols)
+  ts_mat_out = out_file(ts_mat)
+  ts_mat_out_mseq = ts_mat_out + '.mseq'
+  result = 'chol_test'
+  result_out = out_file(result)
+  result_out_mseq = result_out + '.mseq'
+  result_out_txt = result_out + '.txt'
+
+  if not os.path.exists(ts_mat_out):
+    orthogonal(nrows, ncols, ts_mat_out)
+    # TODO(arbenson): Check HDFS instead of just assuming that the local
+    # and HDFS copies are consistent
+    txt_to_mseq(ts_mat_out, ts_mat_out_mseq)
+
+  cm.run_dumbo('CholeskyQR.py', 'icme-hadoop1', ['-mat ' + ts_mat_out_mseq,
+                                                 '-output ' + result_out,
+                                                 '-blocksize 10',
+                                                 '-ncols %d' % ncols,
+                                                 '-reduce_schedule 2,1',
+                                                 '-nummaptasks 4'])
+
+  # we should only have one output file
+  cm.copy_from_hdfs(result_out, result_out_mseq)
+  cm.parse_seq_file(result_out_mseq, result_out_txt)
+  return check_diag_ones(result_out_txt, ncols)
 
 def BtA_test():
   # TODO(arbenson): finish this test
