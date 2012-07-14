@@ -16,10 +16,11 @@ David F. Gleich
 Copyright (c) 2012
 """
 
-import mrmc
 import dumbo
-import util
+import mrmc
 import os
+import sys
+import util
 
 # create the global options structure
 gopts = util.GlobalOptions()
