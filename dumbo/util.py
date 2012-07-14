@@ -169,7 +169,7 @@ class CommandManager:
         self.exec_cmd(copy_cmd)
 
     # parse a sequence file
-    def parse_seq_file(self, input, output=None):
+    def parse_seq_file(self, inp, output=None):
         path = os.path.dirname(__file__)
         # TODO(arbenson): import the files instead of this hack
         reader = os.path.join(path,
@@ -177,7 +177,7 @@ class CommandManager:
         if not os.path.exists(reader):
             self.error('Could not find sequence file reader!')
         if output is None:
-            output = input + '.out'
-        parse_cmd = 'python %s %s > %s' % (reader, input, output)
+            output = inp + '.out'
+        parse_cmd = 'python %s %s > %s' % (reader, inp, output)
         self.exec_cmd(parse_cmd)
 
