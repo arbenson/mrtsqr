@@ -24,25 +24,25 @@ import dumbo.backends.common
 # create the global options structure
 gopts = util.GlobalOptions()
 
-def mapper(key,value):
-    #x = key[0]
-    #y = key[1]
-    #z = key[2]
-    #c = key[3]
-    #k = (c-1)*(128*255*256) + (z-1)*(255*256) + (y-1)*(256) + (x-1)
-    #k = key
-    #value = value[0:2] 
-    #v = value.split()
-    #k = int(v[0])
-    #v = v[1:]
-    #value = [float(e) for e in v]
-    use = random.randint(0, 4000000000)
-    if not use % 100:
-        yield key, value
+class Map:
+  def __init__(self, scale):
+    self.scale = scale
+    self.ncols = 10
+
+  def __call__(self, key, value):
+    if key != 0:
+      return
+    Q, R = numpy.linalg.qr(numpy.random.randn(1000000, 10))
+    s = [self.scale] + [1]*9
+    A = numpy.mat(Q) * numpy.mat(R*s)
+    for row in A.getA():
+      key = [numpy.random.randint(0, 1000000) for x in xrange(3)]
+      yield key, row
 
 def runner(job):
+    scale = gopts.getintkey('scale')
     options=[('numreducetasks', '0'), ('nummaptasks', '20')]
-    job.additer(mapper=mapper, reducer=mrmc.ID_REDUCER,
+    job.additer(mapper=Map(scale=scale), reducer=mrmc.ID_REDUCER,
                 opts=options)
 
 def starter(prog):
@@ -54,26 +54,18 @@ def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-
     mat = prog.delopt('mat')
     if not mat:
         return "'mat' not specified'"
 
-    prog.addopt('memlimit','2g')
+    gopts.getintkey('scale', 20)
 
-    nonumpy = prog.delopt('use_system_numpy')
-    if nonumpy is None:
-        print >> sys.stderr, 'adding numpy egg: %s'%(str(nonumpy))
-        prog.addopt('libegg', 'numpy')
+    prog.addopt('memlimit','2g')
 
     prog.addopt('file',os.path.join(mypath,'util.py'))
     prog.addopt('file',os.path.join(mypath,'mrmc.py'))
 
-    numreps = prog.delopt('replication')
-    if not numreps:
-        numreps = 1
-    for i in range(int(numreps)):
-        prog.addopt('input',mat)
+    prog.addopt('input', mat)
 
     #prog.addopt('input',mat)
     matname,matext = os.path.splitext(mat)
