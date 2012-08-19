@@ -98,11 +98,18 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
                 value = self.unpacker.unpack(value)
             else:
                 value = [float(p) for p in value.split()]
-        self.collect(key,value)        
+
+        if self.ncols == None:
+            self.ncols = len(value)
+            print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
+        if len(value) != self.ncols:
+            raise DataFormatException(
+                'Length of value did not match number of columns')
+        self.collect(key, value)        
 
     def collect_data(self, data, key=None):
         if key == None:
-            for key,value in data:
+            for key, value in data:
                 self.collect_data_instance(key, value)
         else:
             for value in data:
@@ -120,7 +127,6 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
                 # check for TypedBytes string
                 try:
                     val = list(struct.unpack('d' * ncols, val))
-                    self.ncols = ncols
                     self.unpacker = struct.Struct('d' * ncols)
                     return True
                 except struct.error, serror:
@@ -129,6 +135,7 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
             else:
                 raise DataFormatException('Number of data bytes (%d)' % len(val)
                                           + ' is not a multiple of 8.')
+        return True
 
 
 """
@@ -161,16 +168,7 @@ class SerialTSQR(MatrixHandler):
         for row in R:
             self.data.append(util.array2list(row))
                         
-    def collect(self,key,value):
-        if self.ncols == None:
-            self.ncols = len(value)
-            print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
-
-        if len(value) != self.ncols:
-            raise DataFormatException(
-                'Length of value did not match number of columns')
-
-
+    def collect(self, key, value):
         self.data.append(value)
         self.nrows += 1
         
@@ -251,13 +249,6 @@ class TSMatMul(MatrixHandler):
         self.keys = []
     
     def collect(self, key, value):
-        if self.ncols == None:
-            self.ncols = len(value)
-        
-        if len(value) != self.ncols:
-            raise DataFormatException(
-                'Length of value did not match number of columns')
-
         self.keys.append(key)
         self.data.append(value)
         self.nrows += 1
@@ -313,40 +304,32 @@ class Cholesky(dumbo.backends.common.MapRedBase):
 
 
 class AtA(MatrixHandler):
-    def __init__(self, blocksize=3, ncols=10):
+    def __init__(self, blocksize=3):
         MatrixHandler.__init__(self)        
         self.blocksize=blocksize
         self.data = []
         self.A_curr = None
-        self.row = None
     
     def compress(self):
         # Compute AtA on the data accumulated so far
-        if self.ncols is None:
+        if self.ncols is None or len(self.data) == 0:
             return
-            
+
         t0 = time.time()
         A_mat = numpy.mat(self.data)
         A_flush = A_mat.T * A_mat
         dt = time.time() - t0
         self.counters['numpy time (millisecs)'] += int(1000 * dt)
 
-        # reset data and add flushed update to local copy
-        self.data = []
+        # Add flushed update to local copy
         if self.A_curr == None:
             self.A_curr = A_flush
         else:
-            self.A_curr = self.A_curr + A_flush
+            self.A_curr += A_flush
+        self.data = []
 
     
-    def collect(self, key, value):
-        if self.ncols == None:
-            self.ncols = len(value)
-            print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
-        if not len(value) == self.ncols:
-            raise DataFormatException(
-                'Length of value did not match number of columns')
-        
+    def collect(self, key, value):        
         self.data.append(value)
         self.nrows += 1
         
@@ -358,7 +341,6 @@ class AtA(MatrixHandler):
         # write status updates so Hadoop doesn't complain
         if self.nrows % 50000 == 0:
             self.counters['rows processed'] += 50000
-
 
     def close(self):
         self.counters['rows processed'] += self.nrows % 50000
@@ -408,15 +390,6 @@ class BtAReducer(MatrixHandler):
             self.BtA = self.BtA + BtA_flush
 
     def collect(self,key,value,subset):        
-        if self.ncols == None:
-            self.ncols = len(value)
-            print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
-
-        if len(value) != self.ncols:
-            # TODO(arbenson): add a "liberal" flag that 
-            raise DataFormatException(
-                'Length of value did not match number of columns')
-        
         subset.append(value)
         self.nrows += 1
         
@@ -437,7 +410,7 @@ class BtAReducer(MatrixHandler):
             r = self.array2list(row)
             yield ind, r
         
-    def __call__(self,data):
+    def __call__(self, data):
         # this is always a reducer
         for key,values in data:
             for val in values:
@@ -457,7 +430,7 @@ class BtAMapper(dumbo.backends.common.MapRedBase):
     def __init__(self, B_id):
         self.B_id = B_id
 
-    def __call__(self,key_,value):
+    def __call__(self, key_, value):
         path = key_[0]
         print >>sys.stderr, 'path is: ' + str(path)
         key = key_[1]
@@ -471,14 +444,27 @@ class BtAMapper(dumbo.backends.common.MapRedBase):
             yield key, ('B', value)
 
 
-def ArraySumReducer(key, values):
-    # TODO(arbenson): handle typedbytes string format here
-    for j, val in enumerate(values):
-        if j == 0: 
-            arr = val
+class ArraySumReducer(MatrixHandler):
+    def __init__(self):
+        MatrixHandler.__init__(self)
+        self.row_sums = {}
+
+    def collect(self, key, value):
+        if key not in self.row_sums:
+            self.row_sums[key] = value
         else:
-            if len(val) != len(arr):
+            if len(value) != len(self.row_sums[key]):
+                print >>sys.stderr, 'value: ' + str(value)
+                print >>sys.stderr, 'value: ' + str(self.row_sums[key])
                 raise DataFormatException('Differing array lengths for summing')
-            for k in xrange(len(arr)):
-                arr[k] += val[k]
-    yield key, arr
+            for k in xrange(len(self.row_sums[key])):
+                self.row_sums[key][k] += value[k]
+    
+    def __call__(self, data):
+        for key, values in data:
+            self.collect_data(values, key)
+        for key in self.row_sums:
+            yield key, self.row_sums[key]
+
+        
+
