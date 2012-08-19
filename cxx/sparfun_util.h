@@ -62,8 +62,8 @@ struct wall_timer {
     double dt() {
         timeval t; 
         gettimeofday(&t, 0);
-        return (double)(t.tv_sec - t0.tv_sec) + (double)(
-                    t.tv_usec - t0.tv_usec)/1000000.0;
+        return (double)(t.tv_sec - t0.tv_sec) +
+               (double) (t.tv_usec - t0.tv_usec) / 1000000.0;
     }
 };
 #endif
