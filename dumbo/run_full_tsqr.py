@@ -39,6 +39,8 @@ parser.add_option('-o', '--output', dest='out', default='',
                   help='base string for output of Hadoop jobs')
 parser.add_option('-l', '--local_output', dest='local_out', default='full_out_tmp',
                   help='Base directory for placing local files')
+parser.add_option('-t', '--times_output', dest='times_out', default='times',
+                  help='Base directory for placing local files')
 parser.add_option('-n', '--ncols', type='int', dest='ncols', default=0,
                   help='number of columns in the matrix')
 parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
@@ -77,6 +79,8 @@ out_file = lambda f: local_out + '/' + f
 if os.path.exists(local_out):
   shutil.rmtree(local_out)
 os.mkdir(local_out)
+
+times_out = options.times_out
 
 ncols = options.ncols
 if ncols == 0:
@@ -143,4 +147,9 @@ if svd_opt == 2:
                                         '-mpath ' + small_U_file + '.out',
                                         '-nummaptasks %d' % sched[2]])
 
-cm.output('times: ' + str(cm.times))
+try:
+  f = open(times_out, 'w')
+  f.write('times: ' + str(cm.times))
+  f.close
+except:
+  pass
