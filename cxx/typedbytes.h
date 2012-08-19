@@ -450,5 +450,5 @@ class TypedBytesOutFile {
     return _write_bytes(bytes, 1, size);
   }
 };
-        
+     
 #endif

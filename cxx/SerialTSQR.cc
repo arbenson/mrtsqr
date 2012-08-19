@@ -27,7 +27,7 @@ public:
       int rand_int = sf_randint(0, 2000000000);
       out_.write_int(rand_int);
       out_.write_list_start();
-      for (size_t j = 0; j<num_cols_; ++j) {
+      for (size_t j = 0; j < num_cols_; ++j) {
 	out_.write_double(local_matrix_[i + j * num_rows_]);
       }
       out_.write_list_end();
