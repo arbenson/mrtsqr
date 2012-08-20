@@ -54,14 +54,8 @@ typedef std::vector<unsigned char> typedbytes_opaque;
 
 class TypedBytesInFile {
  public:    
-  FILE* stream;
-  TypedBytesType lastcode; // the last typecode read
-    
-  typedbytes_length lastlength; // the string/byte-seq length read
-  // (decremented by any reading)
-    
- TypedBytesInFile(FILE* stream_) 
-   : stream(stream_), lastcode(TypedBytesTypeError), lastlength(-1)
+ TypedBytesInFile(FILE* stream) 
+   : stream_(stream), last_code_(TypedBytesTypeError), last_length_(-1)
     {}
     
   /** Get the next type code as a supported type. */
@@ -85,15 +79,15 @@ class TypedBytesInFile {
    * This command returns TypedBytesTypeError on an error.
    */
   unsigned char next_type_code() {
-    int c = fgetc(stream);
-    // reset lastlength
-    lastlength = -1;
+    int c = fgetc(stream_);
+    // reset last_length_
+    last_length_ = -1;
     if (c == EOF) {
       // TODO set error flag
-      lastcode = TypedBytesTypeError;
+      last_code_ = TypedBytesTypeError;
       return (unsigned char) TypedBytesTypeError;
     } else {
-      lastcode = (TypedBytesType) c;
+      last_code_ = (TypedBytesType) c;
       return (unsigned char) c;
     }
   }
@@ -102,14 +96,13 @@ class TypedBytesInFile {
    * DO NOT call this function directly.
    */
   size_t _read_bytes(void *ptr, size_t nbytes, size_t nelem) {
-    size_t nread = fread(ptr, nbytes, nelem, stream);
+    size_t nread = fread(ptr, nbytes, nelem, stream_);
     if (nread != nelem) {
-      // TODO set error flag
-      // and determien more intelligent action.
-      assert(nelem == nread);
+      // TODO set error flag and determine more intelligent action.
+      assert(0);
     }
-    // reset lastlength
-    lastlength = -1;
+    // reset last_length_
+    last_length_ = -1;
     return nread;
   }
     
@@ -124,34 +117,30 @@ class TypedBytesInFile {
               
   /** Return the amount of data remaining in a byte-sequence of string */
   typedbytes_length length_remaining() const {
-    return lastlength;
+    return last_length_;
   }
     
   bool _read_data_block(unsigned char* data, size_t size) {
-    assert(lastlength >= 0);
-    typedbytes_length curlen = lastlength;
-    if (size <= (size_t)curlen) {
-      size_t nread = _read_bytes(
-                                 data, sizeof(unsigned char), (size_t)size);
-      // NOTE _read_bytes resets lastlength, so we have to reset it back
-        
-      if (nread != size) {
-        // TODO update error
-        return false;
-      } else {
-        lastlength = curlen - size;
-        assert(lastlength >= 0);
-        return true;
-      }
-    } else {
+    assert(last_length_ >= 0);
+    typedbytes_length curlen = last_length_;
+    if (size > (size_t) curlen) {
       return false;
     }
+    size_t nread = _read_bytes(data, sizeof(unsigned char), (size_t) size);
+    // NOTE _read_bytes resets last_length_, so we have to reset it back
+    if (nread != size) {
+      // TODO update error
+      return false;
+    }
+    last_length_ = curlen - size;
+    assert(last_length_ >= 0);
+    return true;
   }
     
 #ifdef TYPEDBYTES_STRICT_TYPE
-#define typedbytes_check_type_code(x) (assert((x) == lastcode))
+# define typedbytes_check_type_code(x) (assert((x) == last_code_))
 #else
-#define typedbytes_check_type_code(x)
+# define typedbytes_check_type_code(x)
 #endif    
 
   signed char read_byte() {
@@ -190,9 +179,9 @@ class TypedBytesInFile {
     
   /** Read a byte, bool, int, long, or float and convert to double. */
   double convert_double() {
-    if (lastcode == TypedBytesFloat) {
+    if (last_code_ == TypedBytesFloat) {
       return (double)read_float();
-    } else if (lastcode == TypedBytesDouble) {
+    } else if (last_code_ == TypedBytesDouble) {
       return (double)read_double();
     } else {
       return (double)convert_long();
@@ -201,7 +190,7 @@ class TypedBytesInFile {
     
   /** Read a byte, bool, int, or long and convert to long. */
   typedbytes_long convert_long() {
-    if (lastcode == TypedBytesLong) {
+    if (last_code_ == TypedBytesLong) {
       return (long)read_long();
     } else {
       return (long)convert_int();
@@ -210,14 +199,14 @@ class TypedBytesInFile {
     
   /** Read a byte, bool, int, or long and convert to long. */
   int convert_int() {
-    if (lastcode == TypedBytesByte) {
+    if (last_code_ == TypedBytesByte) {
       return (int) read_byte();
-    } else if (lastcode == TypedBytesBoolean) {
+    } else if (last_code_ == TypedBytesBoolean) {
       return (int) read_bool();
-    } else if (lastcode == TypedBytesInteger) {
+    } else if (last_code_ == TypedBytesInteger) {
       return (int) read_int();
     } else {
-      assert(lastcode == TypedBytesTypeError);
+      assert(last_code_ == TypedBytesTypeError);
       return 0;
     }
   }
@@ -286,7 +275,7 @@ class TypedBytesInFile {
   typedbytes_length read_string_length() {
     typedbytes_check_type_code(TypedBytesString);
     typedbytes_length len = _read_length();
-    lastlength = len;
+    last_length_ = len;
     return len;
   }
     
@@ -311,13 +300,13 @@ class TypedBytesInFile {
     
   typedbytes_length read_byte_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-    if (lastcode == TypedBytesByteSequence || 
-        (lastcode >= 50 && lastcode <= 200)) {} // do nothing here
+    if (last_code_ == TypedBytesByteSequence || 
+        (last_code_ >= 50 && last_code_ <= 200)) {} // do nothing here
     else {
       typedbytes_check_type_code(TypedBytesTypeError); }
 #endif
     typedbytes_length len = _read_length();
-    lastlength = len;
+    last_length_ = len;
     return len;
   }
     
@@ -327,8 +316,8 @@ class TypedBytesInFile {
    */
   bool read_byte_sequence(unsigned char* data, size_t size) {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-    if (lastcode == TypedBytesByteSequence || 
-        (lastcode >= 50 && lastcode <= 200)) {} // do nothing here
+    if (last_code_ == TypedBytesByteSequence || 
+        (last_code_ >= 50 && last_code_ <= 200)) {} // do nothing here
     else { typedbytes_check_type_code(TypedBytesTypeError); }
 #endif
     return _read_data_block(data, size);
@@ -339,28 +328,37 @@ class TypedBytesInFile {
    */
   typedbytes_length read_typedbytes_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-    if (lastcode == TypedBytesVector || lastcode == TypedBytesMap) {} 
+    if (last_code_ == TypedBytesVector || last_code_ == TypedBytesMap) {} 
     else { typedbytes_check_type_code(TypedBytesTypeError); }
 #endif        
     return _read_length();
   }
+
+  FILE *get_stream() { return stream_; }
+  TypedBytesType get_last_code() { return last_code_; }
+  typedbytes_length get_last_length() { return last_length_; }
+
+ private:
+  FILE* stream_;
+  // the last typecode read
+  TypedBytesType last_code_;
+  // the string/byte-seq length read (decremented by any reading)
+  typedbytes_length last_length_;
 };
 
 class TypedBytesOutFile {
  public:
-  FILE* stream;
-    
- TypedBytesOutFile(FILE* stream_)
-   : stream(stream_)
+ TypedBytesOutFile(FILE* stream)
+   : stream_(stream)
   {}
     
   bool _write_length(typedbytes_length len) {
     len = bswap32(len);
-    return fwrite(&len, sizeof(typedbytes_length), 1, stream) == 1;
+    return fwrite(&len, sizeof(typedbytes_length), 1, stream_) == 1;
   }
     
   bool _write_bytes(const void* ptr, size_t nbytes, size_t nelem) {
-    return fwrite(ptr, nbytes, nelem, stream) == nelem;
+    return fwrite(ptr, nbytes, nelem, stream_) == nelem;
   }
     
   bool _write_code(TypedBytesType t) {
@@ -446,7 +444,9 @@ class TypedBytesOutFile {
   bool write_opaque_type(unsigned char* bytes, size_t size) {
     return _write_bytes(bytes, 1, size);
   }
-    
+
+ private:
+  FILE* stream_;
 };
         
 #endif
