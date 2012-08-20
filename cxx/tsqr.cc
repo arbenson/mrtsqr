@@ -24,24 +24,83 @@
 #include "tsqr_util.h"
 
 class MatrixHandler {
+public:
   MatrixHandler(TypedBytesInFile& in, TypedBytesOutFile& out,
                 size_t blocksize, size_t rows_per_record)
     : in_(in), out_(out),
       blocksize_(blocksize), rows_per_record_(rows_per_record),
       num_cols_(0), num_rows_(0), num_total_rows_(0) {}
 
+  ~MatrixHandler() {}
+
+  void read_full_row(std::vector<double>& row) {
+    TypedBytesType code = in_.next_type();
+    row.clear();
+    if (code == TypedBytesVector) {
+      hadoop_message("code == TypedBytesVector\n");
+      typedbytes_length len = in_.read_typedbytes_sequence_length();
+      row.reserve((size_t)len);
+      for (size_t i = 0; i < (size_t)len; ++i) {
+        TypedBytesType nexttype = in_.next_type();
+        if (in_.can_be_double(nexttype)) {
+          row.push_back(in_.convert_double());
+        } else {
+          fprintf(stderr, 
+                  "error: row %zi, col %zi has a non-double-convertable type\n",
+                  num_total_rows_, row.size());
+          exit(-1);
+        }
+      }
+    } else if (code == TypedBytesList) {
+      hadoop_message("code == TypedBytesList\n");
+      TypedBytesType nexttype = in_.next_type();
+      while (nexttype != TypedBytesListEnd) {
+        if (in_.can_be_double(nexttype)) {
+          row.push_back(in_.convert_double());
+        } else {
+          hadoop_message("row has a non-double-convertable type!!\n");
+          fprintf(stderr, 
+                  "error: row %zi, col %zi has a non-double-convertable type\n",
+                  num_total_rows_, row.size());
+          exit(-1);
+        }
+        nexttype = in_.next_type();
+      }
+    } else if (code == TypedBytesString) {
+      hadoop_message("code == TypedBytesString\n");
+      typedbytes_length len = in_.read_string_length();
+      row.resize(len / 8);
+      in_.read_string_data((unsigned char *)&row[0], (size_t)len);
+    } else {
+      hadoop_message("row is not a list, vector, or string\n");
+      hadoop_message("code is: %d\n", code);
+      fprintf(stderr,
+              "error: row %zi is a not a list, vector, or string\n", num_total_rows_);
+      exit(-1);
+    }
+  }
+
+  bool read_key_val_pair(typedbytes_opaque& key,
+                         std::vector<double>& value) {
+    if (in_.read_opaque(key) == false) {
+      return false;
+    }
+    read_full_row(value); 
+    return true;
+  }
+
   virtual void mapper() {
     typedbytes_opaque key;
     std::vector<double> row;
     first_row();
     while (!feof(in_.stream)) {
-      if (read_key_val_pair(in_, key, row) == false) {
-	if (feof(in_.stream)) {
-	  break;
-	} else {
-	  hadoop_message("invalid key: row %i\n", num_total_rows_);
-	  exit(-1);
-	}
+      if (read_key_val_pair(key, row) == false) {
+        if (feof(in_.stream)) {
+          break;
+        } else {
+          hadoop_message("invalid key: row %i\n", num_total_rows_);
+          exit(-1);
+        }
       }
       collect(key, row);
     }
@@ -71,11 +130,11 @@ class MatrixHandler {
   virtual void first_row() {
     typedbytes_opaque key;
     std::vector<double> row;
-    read_key_val_pair(in_, key, row);
+    read_key_val_pair(key, row);
     // TODO(arbenson) check for error here
     num_cols_ = row.size();
     hadoop_message("matrix size: %zi num_cols_, up to %i localrows\n", 
-		   num_cols_, blocksize_ * num_cols_);
+                   num_cols_, blocksize_ * num_cols_);
     alloc(blocksize_ * num_cols_, num_cols_); 
     add_row(row);
   }
@@ -88,8 +147,8 @@ class MatrixHandler {
     for (size_t k = 0; k < rows_per_record_; ++k) {
       size_t i = 0;
       for (size_t j = 0; j < num_cols_; ++j) {
-	local_matrix_[num_local_rows_ + j * num_rows_] = row[i];
-	++i;
+        local_matrix_[num_local_rows_ + j * num_rows_] = row[i];
+        ++i;
       }
       // increment the number of local rows
       ++num_local_rows_;
@@ -97,21 +156,12 @@ class MatrixHandler {
     }
   }
   
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {
-    add_row(value);
-    if (num_local_rows_ >= num_rows_) {
-      hadoop_message("about to compress\n");
-      compress();
-      hadoop_message("compress appears successful\n");
-      hadoop_counter("compress", 1);
-    }
-  }
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) = 0;
 
-  virtual void close() {
-    compress();
-  }
+  virtual void output() = 0;
 
- public:
+  virtual void close() = 0;
+
   TypedBytesInFile& in_;
   TypedBytesOutFile& out_;
 
@@ -128,10 +178,24 @@ class MatrixHandler {
 class SerialTSQR : public MatrixHandler {
 public:
   SerialTSQR(TypedBytesInFile& in, TypedBytesOutFile& out,
-	    size_t blocksize, size_t rows_per_record)
+            size_t blocksize, size_t rows_per_record)
     : MatrixHandler(in, out, blocksize, rows_per_record) {}
   virtual ~SerialTSQR() {}
-    
+
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {
+    add_row(value);
+    if (num_local_rows_ >= num_rows_) {
+      hadoop_message("about to compress\n");
+      compress();
+      hadoop_message("compress appears successful\n");
+      hadoop_counter("compress", 1);
+    }
+  }
+
+  void close() {
+    compress();
+  }
+
   // compress the local QR factorization
   void compress() {
     // compute a QR factorization
@@ -155,7 +219,7 @@ public:
       out_.write_int(rand_int);
       out_.write_list_start();
       for (size_t j = 0; j < num_cols_; ++j) {
-	out_.write_double(local_matrix_[i + j * num_rows_]);
+        out_.write_double(local_matrix_[i + j * num_rows_]);
       }
       out_.write_list_end();
     }
@@ -165,7 +229,7 @@ public:
 class Cholesky : public MatrixHandler {
 public:
   Cholesky(TypedBytesInFile& in, TypedBytesOutFile& out,
-	   size_t blocksize, size_t rows_per_record)
+           size_t blocksize, size_t rows_per_record)
     : MatrixHandler(in, out, blocksize, rows_per_record) {}
 
   int read_key() {
@@ -185,7 +249,7 @@ public:
   void first_row() {
     int row_index = read_key();
     std::vector<double> row;
-    read_full_row(in_, row);
+    read_full_row(row);
     num_cols_ = row.size();
     rows_.resize(num_cols_);
     for (int i = 0; i < (int) num_cols_; ++i) {
@@ -193,9 +257,11 @@ public:
     }
     assert(row_index < (int)num_cols_);
     hadoop_message("matrix size: %zi num_cols_, up to %i localrows\n", 
-		   num_cols_, blocksize_ * num_cols_);
+                   num_cols_, blocksize_ * num_cols_);
     add_row(row, row_index);
   }
+
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
     
   // read in a row and add it to the local matrix
   void add_row(const std::vector<double>& row, int row_index) {
@@ -211,6 +277,7 @@ public:
   }
 
   void compress() {}
+  void close() {}
   
   // Output the row sums
   void output() {
@@ -222,7 +289,7 @@ public:
       double *curr_row = rows_[i];
       assert(curr_row);
       for (int j = 0; j < dim; ++j) {
-	A[i * dim + j] = curr_row[j];
+        A[i * dim + j] = curr_row[j];
       }
       free(curr_row);
     }
@@ -237,11 +304,11 @@ public:
       out_.write_int(i);
       out_.write_list_start();
       for (int j = 0; j < dim; ++j) {
-	if (j <= i) {
-	  out_.write_double(A[i * dim + j]);
-	} else {
-	  out_.write_double(0.0);
-	}
+        if (j <= i) {
+          out_.write_double(A[i * dim + j]);
+        } else {
+          out_.write_double(0.0);
+        }
       }
       out_.write_list_end();
     }
@@ -266,7 +333,8 @@ public:
       local_AtA_ = (double *)calloc(num_cols_ * num_cols_, sizeof(double));
       assert(local_AtA_);
     }
-    if (lapack_syrk(&local[0], local_AtA_, num_rows_, num_cols_, num_local_rows_)) {
+    if (lapack_syrk(&local_matrix_[0], local_AtA_, num_rows_, num_cols_,
+                    num_local_rows_)) {
       double dt = sf_time() - t0;
       hadoop_counter("lapack time (millisecs)", (int) (dt * 1000.));
     } else {
@@ -282,11 +350,15 @@ public:
       out_.write_int(i);
       out_.write_list_start();
       for (size_t j = 0; j < num_cols_; ++j) {
-	out_.write_double(local_AtA_[i + j * num_rows_]);
+        out_.write_double(local_AtA_[i + j * num_rows_]);
       }
       out_.write_list_end();
     }
   }
+
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+  
+  virtual void close() {}
 
 private:
   double *local_AtA_;
@@ -295,11 +367,11 @@ private:
 class RowSum : MatrixHandler {
 public:
   RowSum(TypedBytesInFile& in, TypedBytesOutFile& out,
-	 size_t blocksize, size_t rows_per_record)
+         size_t blocksize, size_t rows_per_record)
     : MatrixHandler(in, out, blocksize, rows_per_record) {}
 
   int read_key() {
-    TypedBytesType type = in.next_type();
+    TypedBytesType type = in_.next_type();
     if (type != TypedBytesInteger) {
       hadoop_message("invalid key, TypedBytes code: %d (skipping) \n",type);
       in_.skip_next();
@@ -315,7 +387,7 @@ public:
   virtual void first_row() {
     int row_index = read_key();
     std::vector<double> row;
-    read_full_row(in_, row);
+    read_full_row(row);
     num_cols_ = row.size();
     rows_.resize(num_cols_);
     used_.resize(num_cols_);
@@ -325,7 +397,7 @@ public:
       used_[i] = false;
     }
     hadoop_message("matrix size: %zi num_cols_, up to %i localrows\n", 
-		   num_cols_, blocksize_ * num_cols_);
+                   num_cols_, blocksize_ * num_cols_);
     add_row(row, row_index);
   }
     
@@ -341,7 +413,7 @@ public:
     } else {
       double *new_row = (double *) malloc(num_cols_ * sizeof(double));
       for (int i = 0; i < (int)num_cols_; ++i) {
-	new_row[i] = row[i];
+        new_row[i] = row[i];
       }
       rows_[row_index] = new_row;
       used_[row_index] = true;
@@ -354,7 +426,10 @@ public:
   virtual void close() {}
 
   virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {
-    add_row(value, (int) key);
+    int key_converted = 0;
+    key_converted = ((int) key[0] << 24) | ((int) key[1] << 16) |
+      ((int) key[2] << 8) | ((int) key[3]);
+    add_row(value, (int) key_converted);
   }
 
   virtual void reducer() {
@@ -367,14 +442,14 @@ public:
     int num_rows_ = (int)rows_.size();
     for (int i = 0; i < num_rows_; ++i) {
       if (used_[i]) {
-	out_.write_int(i);
-	out_.write_list_start();
-	double *curr_row = rows_[i];
-	for (size_t j = 0; j < num_cols_; ++j) {
-	  out_.write_double(curr_row[j]);
-	}
-	out_.write_list_end();
-	free(curr_row);
+        out_.write_int(i);
+        out_.write_list_start();
+        double *curr_row = rows_[i];
+        for (size_t j = 0; j < num_cols_; ++j) {
+          out_.write_double(curr_row[j]);
+        }
+        out_.write_list_end();
+        free(curr_row);
       }
     }
   }
@@ -396,7 +471,7 @@ void raw_mapper(TypedBytesInFile& in, TypedBytesOutFile& out, size_t blocksize,
 }
 
 void raw_reducer(TypedBytesInFile& in, TypedBytesOutFile& out, size_t blocksize,
-		 size_t rows_per_record, bool use_chol, int iteration) {
+                 size_t rows_per_record, bool use_chol, int iteration) {
   if (!use_chol) {
     raw_mapper(in, out, blocksize, rows_per_record, use_chol);
   } else {

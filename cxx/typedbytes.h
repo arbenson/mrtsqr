@@ -335,8 +335,6 @@ class TypedBytesInFile {
 #endif
     return _read_data_block(data, size);
   }
-
-        
     
   /** The vector and map types are considered sequence types.
    * You are responsible for handling these types yourself.
@@ -389,7 +387,7 @@ class TypedBytesOutFile {
     
   bool write_int(int val) {
     int32_t sval = bswap32(val);
-    return _write_code(TypedBytesInteger) _write_bytes(&sval, sizeof(int32_t), 1);
+    return _write_code(TypedBytesInteger) && _write_bytes(&sval, sizeof(int32_t), 1);
   }
     
   bool write_long(typedbytes_long val) {

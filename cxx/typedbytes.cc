@@ -91,13 +91,13 @@ bool TypedBytesInFile::_read_opaque(typedbytes_opaque& buffer, bool list) {
   } else if (t == TypedBytesVector) {
     typedbytes_length len = read_typedbytes_sequence_length();
     push_opaque_length(buffer, len);
-    for (int i=0; i<len; i++) {
+    for (int i = 0; i < len; ++i) {
       _read_opaque(buffer, false);
     }
   } else if(t == TypedBytesMap) {
     typedbytes_length len = read_typedbytes_sequence_length();
     push_opaque_length(buffer, len);
-    for (int i=0; i<len; i++) {
+    for (int i = 0; i < len; ++i) {
       _read_opaque(buffer, false);
       _read_opaque(buffer, false);
     }

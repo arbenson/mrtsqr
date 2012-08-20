@@ -3,8 +3,7 @@ CXX=g++
 
 CC=$(CXX)
 CXXFLAGS=-Wall -O3  -std=c++0x
-#LDFLAGS=-L$(MKL_LIBDIR) -lmkl_core 
-LDFLAGS=$(MKL) -lpthread
+LDFLAGS=-L$(MKL_LIBDIR) -lmkl_core
 
 all: tsqr word_count colsums tests
 
