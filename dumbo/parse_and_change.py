@@ -32,9 +32,11 @@ class Map:
   def __call__(self, key, value):
     if key != 0:
       return
-    Q, R = numpy.linalg.qr(numpy.random.randn(1000000, 10))
+    Q, R = numpy.linalg.qr(numpy.random.randn(10000, 10))
     s = [self.scale] + [1]*9
     A = numpy.mat(Q) * numpy.mat(R*s)
+    Q2, R2 = numpy.linalg.qr(numpy.random.randn(10, 10))
+    A = A * numpy.mat(Q2)
     for row in A.getA():
       key = [numpy.random.randint(0, 1000000) for x in xrange(3)]
       yield key, row
