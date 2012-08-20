@@ -369,23 +369,12 @@ class TypedBytesOutFile {
   }
     
   bool write_byte_sequence(unsigned char* bytes, typedbytes_length size) {
-    if (_write_code(TypedBytesByteSequence)) {
-      if (_write_length(size)) {
-        if (_write_bytes(bytes, sizeof(unsigned char), (size_t)size)) {
-          return true;
-        }
-      }
-    }
-    return false;
+    return _write_code(TypedBytesByteSequence) && _write_length(size) &&
+      _write_bytes(bytes, sizeof(unsigned char), (size_t) size);
   }
     
   bool write_byte(signed char byte) {
-    if (_write_code(TypedBytesByte)) {
-      if (_write_bytes(&byte, 1, 1)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesByte) && _write_bytes(&byte, 1, 1);
   }
     
   bool write_bool(bool val) {
@@ -393,67 +382,39 @@ class TypedBytesOutFile {
     if (val) {
       sval = 1;
     }
-    if (_write_code(TypedBytesBoolean)) {
-      if (_write_bytes(&sval, 1, 1)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesBoolean) && _write_bytes(&sval, 1, 1);
   }
     
   bool write_int(int val) {
     int32_t sval = bswap32(val);
-    if (_write_code(TypedBytesInteger)) {
-      if (_write_bytes(&sval, sizeof(int32_t), 1)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesInteger) &&
+      _write_bytes(&sval, sizeof(int32_t), 1);
   }
     
   bool write_long(typedbytes_long val) {
     val = bswap64(val);
-    if (_write_code(TypedBytesLong)) {
-      if (_write_bytes(&val, sizeof(typedbytes_long), 1)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesLong) &&
+      _write_bytes(&val, sizeof(typedbytes_long), 1);
   }
     
   bool write_float(float val) {
     int32_t sval = 0;
     memcpy(&sval, &val, sizeof(int32_t));
     sval = bswap32(sval);
-    if (_write_code(TypedBytesFloat)) {
-      if (_write_bytes(&sval, sizeof(int32_t), 1)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesFloat) && _write_bytes(&sval, sizeof(int32_t), 1);
   }
     
   bool write_double(double val) {
     int64_t sval = 0;
     memcpy(&sval, &val, sizeof(int64_t));
     sval = bswap64(sval);
-    if (_write_code(TypedBytesDouble)) {
-      if (_write_bytes(&sval, sizeof(int64_t), 1)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesDouble) &&
+      _write_bytes(&sval, sizeof(int64_t), 1);
   }
     
   bool write_string(const char* str, typedbytes_length size) {
-    if (_write_code(TypedBytesString)) {
-      if (_write_length(size)) {
-        if (_write_bytes(str, sizeof(unsigned char), (size_t)size)) {
-          return true;
-        }
-      }
-    }
-    return false;
+    return _write_code(TypedBytesString) && _write_length(size) &&
+      _write_bytes(str, sizeof(unsigned char), (size_t) size);
   }
     
   bool write_string_stl(std::string& str) {
@@ -476,12 +437,7 @@ class TypedBytesOutFile {
   }
     
   bool write_vector_start(typedbytes_length size) {
-    if (_write_code(TypedBytesVector)) {
-      if (_write_length(size)) {
-        return true;
-      }
-    }
-    return false;
+    return _write_code(TypedBytesVector) && _write_length(size);
   }
         
   /** Write out opaque typedbytes data direct to the stream. 
