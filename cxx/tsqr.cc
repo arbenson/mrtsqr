@@ -34,8 +34,8 @@ public:
   ~MatrixHandler() {}
 
   void read_full_row(std::vector<double>& row) {
-    TypedBytesType code = in_.next_type();
     row.clear();
+    TypedBytesType code = in_.next_type();
     if (code == TypedBytesVector) {
       hadoop_message("code == TypedBytesVector\n");
       typedbytes_length len = in_.read_typedbytes_sequence_length();
@@ -82,7 +82,7 @@ public:
 
   bool read_key_val_pair(typedbytes_opaque& key,
                          std::vector<double>& value) {
-    if (in_.read_opaque(key) == false) {
+    if (!in_.read_opaque(key)) {
       return false;
     }
     read_full_row(value); 
@@ -93,9 +93,9 @@ public:
     typedbytes_opaque key;
     std::vector<double> row;
     first_row();
-    while (!feof(in_.stream)) {
-      if (read_key_val_pair(key, row) == false) {
-        if (feof(in_.stream)) {
+    while (!feof(in_.get_stream())) {
+      if (!read_key_val_pair(key, row)) {
+        if (feof(in_.get_stream())) {
           break;
         } else {
           hadoop_message("invalid key: row %i\n", num_total_rows_);
