@@ -6,7 +6,7 @@ STREAMING_JAR=/usr/lib/hadoop/contrib/streaming/hadoop-streaming-0.20.2-cdh3u4.j
 
 hadoop fs -rmr test-sumsq
 
-hadoop jar $STREAMING_JAR -input .mseq -output test-sumsq \
+hadoop jar $STREAMING_JAR -input A_800M_10.bseq -output test-sumsq \
   -jobconf mapreduce.job.name=tsqr_cxx \
   -jobconf 'stream.map.input=typedbytes' \
   -jobconf 'stream.reduce.input=typedbytes' \
