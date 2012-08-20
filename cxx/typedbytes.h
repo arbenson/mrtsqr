@@ -19,11 +19,11 @@
 #include <string.h>
 
 #if defined(__GNUC__) && __GNUC__ >= 2
-#include <byteswap.h>
-#define bswap32 bswap_32
-#define bswap64 bswap_64
+# include <byteswap.h>
+# define bswap32 bswap_32
+# define bswap64 bswap_64
 #else
-#error no byteswap implemented for your platform yet.
+# error no byteswap implemented for your platform yet.
 #endif 
 
 #include <string>
@@ -55,11 +55,10 @@ typedef std::vector<unsigned char> typedbytes_opaque;
 class TypedBytesInFile {
  public:    
   FILE* stream;
-  // the last typecode read
-  TypedBytesType lastcode;
+  TypedBytesType lastcode; // the last typecode read
     
-  // the string/byte-seq length read (decremented by any reading)
-  typedbytes_length lastlength;    
+  typedbytes_length lastlength; // the string/byte-seq length read
+  // (decremented by any reading)
     
  TypedBytesInFile(FILE* stream_) 
    : stream(stream_), lastcode(TypedBytesTypeError), lastlength(-1)
@@ -69,7 +68,7 @@ class TypedBytesInFile {
   TypedBytesType next_type() {
     unsigned char code = next_type_code();
     if (code <= 10 || code == 255) {
-      return (TypedBytesType) code;
+      return (TypedBytesType)code;
     } else if (code >= 50 && code <= 200) {
       return TypedBytesByteSequence;
     } else if (code == TypedBytesTypeError) {
@@ -118,8 +117,10 @@ class TypedBytesInFile {
   int32_t _read_length() {
     int32_t len = 0;
     _read_bytes(&len, sizeof(int32_t), 1);
-    return bswap32(len);
-  }    
+    len = bswap32(len);
+    return len;
+  }
+    
               
   /** Return the amount of data remaining in a byte-sequence of string */
   typedbytes_length length_remaining() const {
@@ -129,18 +130,22 @@ class TypedBytesInFile {
   bool _read_data_block(unsigned char* data, size_t size) {
     assert(lastlength >= 0);
     typedbytes_length curlen = lastlength;
-    if (size > (size_t) curlen) {
+    if (size <= (size_t)curlen) {
+      size_t nread = _read_bytes(
+                                 data, sizeof(unsigned char), (size_t)size);
+      // NOTE _read_bytes resets lastlength, so we have to reset it back
+        
+      if (nread != size) {
+        // TODO update error
+        return false;
+      } else {
+        lastlength = curlen - size;
+        assert(lastlength >= 0);
+        return true;
+      }
+    } else {
       return false;
     }
-    size_t nread = _read_bytes(data, sizeof(unsigned char), (size_t)size);
-    // NOTE _read_bytes resets lastlength, so we have to reset it back
-    if (nread != size) {
-      // TODO update error
-      return false;
-    } 
-    lastlength = curlen - size;
-    assert(lastlength >= 0);
-    return true;
   }
     
 #ifdef TYPEDBYTES_STRICT_TYPE
@@ -153,14 +158,14 @@ class TypedBytesInFile {
     typedbytes_check_type_code(TypedBytesByte);
     signed char rval = 0;
     _read_bytes(&rval, sizeof(signed char), 1);
-    return rval;
+    return (rval);
   }
     
   bool read_bool() {
     typedbytes_check_type_code(TypedBytesBoolean);
     signed char rval = 0;
     _read_bytes(&rval, sizeof(signed char), 1);
-    return (bool) rval;
+    return (bool)rval;
   }
     
   float read_float() {
@@ -186,20 +191,20 @@ class TypedBytesInFile {
   /** Read a byte, bool, int, long, or float and convert to double. */
   double convert_double() {
     if (lastcode == TypedBytesFloat) {
-      return (double) read_float();
+      return (double)read_float();
     } else if (lastcode == TypedBytesDouble) {
-      return (double) read_double();
+      return (double)read_double();
     } else {
-      return (double) convert_long();
+      return (double)convert_long();
     }
   }
     
   /** Read a byte, bool, int, or long and convert to long. */
   typedbytes_long convert_long() {
     if (lastcode == TypedBytesLong) {
-      return (long) read_long();
+      return (long)read_long();
     } else {
-      return (long) convert_int();
+      return (long)convert_int();
     }
   }
     
@@ -223,7 +228,6 @@ class TypedBytesInFile {
     case TypedBytesBoolean:
     case TypedBytesInteger:
       return true;
-                
     default:
       return false;
     }
@@ -295,27 +299,21 @@ class TypedBytesInFile {
     return _read_data_block(data, size);
   }
     
-  /**
-   * On success, returns the number of bytes read and placed
-   * into str.  On failure, returns -1.
-   * */
-  size_t read_string(std::string& str) {
+  bool read_string(std::string& str) {
     typedbytes_check_type_code(TypedBytesString);
     typedbytes_length len = _read_length();
     str.resize(len);
-    if (len < 0) {
-      return -1;
-    }
+    assert(len >= 0);
     // TODO check for error
-    _read_bytes(&str[0], sizeof(unsigned char), (size_t)len);
-    return (size_t)len;
+    _read_bytes(&str[0], sizeof(unsigned char), (size_t) len);
+    return true;
   }
-
+    
   typedbytes_length read_byte_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
     if (lastcode == TypedBytesByteSequence || 
         (lastcode >= 50 && lastcode <= 200)) {} // do nothing here
-    else { 
+    else {
       typedbytes_check_type_code(TypedBytesTypeError); }
 #endif
     typedbytes_length len = _read_length();
@@ -335,7 +333,7 @@ class TypedBytesInFile {
 #endif
     return _read_data_block(data, size);
   }
-    
+
   /** The vector and map types are considered sequence types.
    * You are responsible for handling these types yourself.
    */
@@ -366,56 +364,96 @@ class TypedBytesOutFile {
   }
     
   bool _write_code(TypedBytesType t) {
-    unsigned char code = (unsigned char)t;
+    unsigned char code = (unsigned char) t;
     return _write_bytes(&code, 1, 1);
   }
     
   bool write_byte_sequence(unsigned char* bytes, typedbytes_length size) {
-    return _write_code(TypedBytesByteSequence) &&
-      _write_length(size) &&
-      _write_bytes(bytes, sizeof(unsigned char), (size_t)size);
+    if (_write_code(TypedBytesByteSequence)) {
+      if (_write_length(size)) {
+        if (_write_bytes(bytes, sizeof(unsigned char), (size_t)size)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
     
   bool write_byte(signed char byte) {
-    return _write_code(TypedBytesByte) && _write_bytes(&byte, 1, 1);
+    if (_write_code(TypedBytesByte)) {
+      if (_write_bytes(&byte, 1, 1)) {
+        return true;
+      }
+    }
+    return false;
   }
     
   bool write_bool(bool val) {
-    signed char sval = val ? 1 : 0;
-    return _write_code(TypedBytesBoolean) && _write_bytes(&sval, 1, 1);
+    signed char sval = 0;
+    if (val) {
+      sval = 1;
+    }
+    if (_write_code(TypedBytesBoolean)) {
+      if (_write_bytes(&sval, 1, 1)) {
+        return true;
+      }
+    }
+    return false;
   }
     
   bool write_int(int val) {
     int32_t sval = bswap32(val);
-    return _write_code(TypedBytesInteger) && _write_bytes(&sval, sizeof(int32_t), 1);
+    if (_write_code(TypedBytesInteger)) {
+      if (_write_bytes(&sval, sizeof(int32_t), 1)) {
+        return true;
+      }
+    }
+    return false;
   }
     
   bool write_long(typedbytes_long val) {
     val = bswap64(val);
-    return _write_code(TypedBytesLong) &&
-      _write_bytes(&val, sizeof(typedbytes_long), 1);
+    if (_write_code(TypedBytesLong)) {
+      if (_write_bytes(&val, sizeof(typedbytes_long), 1)) {
+        return true;
+      }
+    }
+    return false;
   }
     
   bool write_float(float val) {
     int32_t sval = 0;
     memcpy(&sval, &val, sizeof(int32_t));
     sval = bswap32(sval);
-    return _write_code(TypedBytesFloat) && 
-      _write_bytes(&sval, sizeof(int32_t), 1);
+    if (_write_code(TypedBytesFloat)) {
+      if (_write_bytes(&sval, sizeof(int32_t), 1)) {
+        return true;
+      }
+    }
+    return false;
   }
     
   bool write_double(double val) {
     int64_t sval = 0;
     memcpy(&sval, &val, sizeof(int64_t));
     sval = bswap64(sval);
-    return _write_code(TypedBytesDouble) &&
-      _write_bytes(&sval, sizeof(int64_t), 1);
+    if (_write_code(TypedBytesDouble)) {
+      if (_write_bytes(&sval, sizeof(int64_t), 1)) {
+        return true;
+      }
+    }
+    return false;
   }
     
   bool write_string(const char* str, typedbytes_length size) {
-    return _write_code(TypedBytesString) &&
-      _write_length(size) &&
-      _write_bytes(str, sizeof(unsigned char), (size_t)size);
+    if (_write_code(TypedBytesString)) {
+      if (_write_length(size)) {
+        if (_write_bytes(str, sizeof(unsigned char), (size_t)size)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
     
   bool write_string_stl(std::string& str) {
@@ -438,15 +476,21 @@ class TypedBytesOutFile {
   }
     
   bool write_vector_start(typedbytes_length size) {
-    return _write_code(TypedBytesVector) && _write_length(size);
+    if (_write_code(TypedBytesVector)) {
+      if (_write_length(size)) {
+        return true;
+      }
+    }
+    return false;
   }
         
   /** Write out opaque typedbytes data direct to the stream. 
    * This is just a high level wrapper around fwrite to the stream.
-   */
+   * */
   bool write_opaque_type(unsigned char* bytes, size_t size) {
     return _write_bytes(bytes, 1, size);
   }
+    
 };
-     
+        
 #endif
