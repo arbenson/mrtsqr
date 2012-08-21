@@ -47,4 +47,4 @@ write_typedbytes_test: typedbytes.o write_typedbytes_test.o
 .PHONY: all clean tests test_tsqr
 
 clean:
-	rm -rf typedbytes.o dump_typedbytes_info.o dump_typedbytes_info
+	rm -rf *.o dump_typedbytes_info tsqr
