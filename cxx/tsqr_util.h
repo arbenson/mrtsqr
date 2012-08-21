@@ -46,6 +46,8 @@ void hadoop_counter(const char* name, int val) {
 extern "C" {
   void dgeqrf_(int *m, int *n, double *a, int *lda, double *tau,
 	       double *work, int *lwork, int *info);
+  void dorgqr_(int *m, int *n, int *k, double *a, int *lda, double *tau,
+	       double *work, int *lwork, int *info);
   void dsyrk_(char *uplo, char *trans, int *m, int *k, double *alpha,
               double *A, int *lda, double *beta, double *C, int *ldc);
   void daxpy_(int *n, double *alpha, double *x, int *incx, double *y, int *incy);
@@ -106,7 +108,41 @@ bool lapack_syrk(double* A, double* C, size_t nrows, size_t ncols,
   return true;
 }
 
-/** Run a LAPACK qr with local memory allocation.
+bool _lapack_qr(double *A, size_t nrows, size_t ncols, size_t urows, std::vector<double>& tau) {
+  int info = -1;
+  int n = ncols;
+  int m = urows;
+  int stride = nrows;
+
+  // do a workspace query
+  double worksize;
+  int lworkq = -1;  
+  dgeqrf_(&m, &n, A, &stride, &tau[0], &worksize, &lworkq, &info);
+  if (info != 0) {
+    return false;
+  }
+
+  int lwork = (int) worksize;
+  std::vector<double> work(lwork);
+  dgeqrf_(&m, &n, A, &stride, &tau[0], &work[0], &lwork, &info);
+  if (info != 0) {
+    return false;
+  }
+  return true;
+}
+
+// zero out the lower triangle of A
+void zero_out_lower_triangle(double *A, size_t rsize, size_t nrows) {
+  for (size_t j = 0; j < rsize; ++j) {
+    for (size_t i = j + 1; i < rsize; ++i) {
+      A[i + j * nrows] = 0.;
+    }
+  }  
+}
+
+
+/*
+ * Run a LAPACK qr with local memory allocation.
  * @param nrows the number of rows of A allocated
  * @param ncols the number of columns of A allocated
  * @param urows the number of rows of A used.
@@ -114,36 +150,61 @@ bool lapack_syrk(double* A, double* C, size_t nrows, size_t ncols,
  * the size
  */
 bool lapack_qr(double* A, size_t nrows, size_t ncols, size_t urows) {
-  int info = -1;
-  int n = ncols;
-  int m = urows;
-  int stride = nrows;
-  int minsize = std::min(urows, ncols);
-
   // allocate space for tau's
+  int minsize = std::min(urows, ncols);
   std::vector<double> tau(minsize);
-    
-  // do a workspace query
-  double worksize;
-  int lworkq = -1;
-    
-  dgeqrf_(&m, &n, A, &stride, &tau[0], &worksize, &lworkq, &info);
-  if (info != 0) {
+  if (!_lapack_qr(A, nrows, ncols, urows, tau)) {
     return false;
   }
-  int lwork = (int) worksize;
-  std::vector<double> work(lwork);
-  dgeqrf_(&m, &n, A, &stride, &tau[0], &worksize, &lworkq, &info);
-  if (info != 0) {
-    return false;
-  }
-  // zero out the lower triangle of A
-  size_t rsize = (size_t)minsize;
-  for (size_t j = 0; j < rsize; ++j) {
-    for (size_t i = j + 1; i < rsize; ++i) {
-      A[i + j * nrows] = 0.;
-    }
-  }
+  
+  zero_out_lower_triangle(A, (size_t) minsize, nrows);
   return true;
 }
 
+/*
+ * Run a LAPACK qr with explicit Q and R storage.
+ * @param A is the matrix on which to perform QR
+ * @param R is storage for the R matrix (Q is stored in A)
+ * @param nrows the number of rows of A allocated
+ * @param ncols the number of columns of A allocated
+ * @param urows the number of rows of A used.
+ * In LAPACK parlance, nrows is the stride, and urows is
+ * the size
+ */
+bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t urows) {
+  hadoop_message("LAPACK FULL!\n");
+  size_t minsize = std::min(urows, ncols);
+  std::vector<double> tau(minsize);
+  if (!_lapack_qr(A, nrows, ncols, urows, tau)) {
+    return false;
+  }
+
+  memcpy(R, A, minsize * minsize * sizeof(double));
+  for (size_t i = 0; i < minsize; ++i)
+    for (size_t j = 0; j < minsize; ++j)
+      if (i < j)
+        R[i + j * minsize] = 0;
+
+  int info = -1;
+  int m = urows;
+  int n = ncols;
+  int k = ncols;
+  int stride = nrows;
+
+  // do a workspace query
+  double worksize;
+  int lworkq = -1;  
+  dorgqr_(&m, &n, &k, A, &stride, &tau[0], &worksize, &lworkq, &info);
+  if (info != 0) {
+    return false;
+  }
+
+  int lwork = (int) worksize;
+  std::vector<double> work(lwork);
+  dorgqr_(&m, &n, &k, A, &stride, &tau[0], &work[0], &lwork, &info);
+  if (info != 0) {
+    return false;
+  }
+
+  return true;
+}

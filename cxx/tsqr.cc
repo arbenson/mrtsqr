@@ -14,14 +14,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <string>
+#include <time.h>
 
+#include <string>
 #include <algorithm>
 #include <vector>
+#include <list>
 
 #include "typedbytes.h"
 #include "sparfun_util.h"
 #include "tsqr_util.h"
+
+std::string pseudo_uuid() {
+  char buf[32];
+
+  snprintf(buf, sizeof(buf), "%x%x%x%x",
+	   (unsigned int) sf_randint(0, 2000000000),
+	   (unsigned int) sf_randint(0, 2000000000),
+	   (unsigned int) sf_randint(0, 2000000000),
+	   (unsigned int) sf_randint(0, 2000000000));
+
+  std::string uuid(buf);
+  return uuid;
+}
 
 class MatrixHandler {
 public:
@@ -37,7 +52,6 @@ public:
     row.clear();
     TypedBytesType code = in_.next_type();
     if (code == TypedBytesVector) {
-      hadoop_message("code == TypedBytesVector\n");
       typedbytes_length len = in_.read_typedbytes_sequence_length();
       row.reserve((size_t)len);
       for (size_t i = 0; i < (size_t)len; ++i) {
@@ -52,7 +66,6 @@ public:
         }
       }
     } else if (code == TypedBytesList) {
-      hadoop_message("code == TypedBytesList\n");
       TypedBytesType nexttype = in_.next_type();
       while (nexttype != TypedBytesListEnd) {
         if (in_.can_be_double(nexttype)) {
@@ -67,7 +80,6 @@ public:
         nexttype = in_.next_type();
       }
     } else if (code == TypedBytesString) {
-      hadoop_message("code == TypedBytesString\n");
       typedbytes_length len = in_.read_string_length();
       row.resize(len / 8);
       in_.read_string_data((unsigned char *)&row[0], (size_t)len);
@@ -459,6 +471,92 @@ private:
   std::vector<bool> used_;
 };
 
+class FullTSQRMap1 : public MatrixHandler {
+public:
+  FullTSQRMap1(TypedBytesInFile& in_, TypedBytesOutFile& out_,
+	       size_t blocksize_, size_t rows_per_record_)
+    : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
+    mapper_id_ = pseudo_uuid();
+  }
+  virtual ~FullTSQRMap1() {}
+
+  virtual void first_row() {
+    typedbytes_opaque key;
+    std::vector<double> row;
+    read_key_val_pair(key, row);
+    num_cols_ = row.size();
+    hadoop_message("matrix size: %zi\n", num_cols_);
+    collect(key, row);
+  }
+
+
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {
+    keys_.push_back(key);
+    for (size_t i = 0; i < value.size(); ++i) {
+      row_accumulator_.push_back(value[i]);
+    }
+    ++num_rows_;
+  }
+
+  void close() {}
+
+  void output() {
+    double *R_matrix = (double *) malloc(num_cols_ * num_cols_ * sizeof(double));
+    assert(R_matrix);
+    size_t num_rows = row_accumulator_.size() / num_cols_;
+    hadoop_message("nrows: %d, ncols: %d\n", num_rows, num_cols_);
+    lapack_full_qr(&row_accumulator_[0], R_matrix, num_rows, num_cols_, num_rows);
+
+    out_.write_list_start();
+    // Specify output file
+    std::string output_file = "R_" + mapper_id_;
+    out_.write_string_stl(output_file);
+    // Specify actual key
+    out_.write_string_stl(mapper_id_);
+    out_.write_list_end();
+    out_.write_list_start();
+    for (size_t i = 0; i < num_cols_; ++i) {
+      for (size_t j = 0; j < num_cols_; ++j) {
+        out_.write_double(R_matrix[i + j * num_cols_]);
+      }
+    }
+    out_.write_list_end();
+
+    /*
+    // output (Q, keys)
+    // write key
+    out_.write_string_stl(mapper_id_);
+
+    // start value write
+    out_.write_list_start();
+
+    // write Q
+    out_.write_list_start();
+    for (size_t i = 0; i < row_accumulator_.size(); ++i) {
+      out_.write_double(row_accumulator_[i]);
+    }
+    out_.write_list_end();
+
+    // write keys
+    out_.write_list_start();
+    for (std::list<typedbytes_opaque>::iterator it = keys_.begin();
+         it != keys_.end(); ++it) {
+      typedbytes_opaque key = *it;
+      out_.write_opaque_type(&key[0], key.size());
+    }
+    out_.write_list_end();
+
+    // end value write
+    out_.write_list_end();
+    */
+  }
+
+private:
+  std::string mapper_id_;
+  std::list<typedbytes_opaque> keys_;
+  std::vector<double> row_accumulator_;
+};
+
 void raw_mapper(TypedBytesInFile& in, TypedBytesOutFile& out, size_t blocksize,
                 size_t rows_per_record, bool use_chol) {
   if (!use_chol) {
@@ -500,7 +598,11 @@ int main(int argc, char** argv) {
   // create typed bytes files
   TypedBytesInFile in(stdin);
   TypedBytesOutFile out(stdout);
-    
+
+  FullTSQRMap1 map(in, out, 5, 1);
+  map.mapper();
+  return 0;
+
   if (argc < 2) {
     usage();
   }
