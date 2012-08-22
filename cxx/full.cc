@@ -10,7 +10,7 @@
 #include "sparfun_util.h"
 
 
-/*
+// NOT WORKING
 class FullTSQRReduce2: public MatrixHandler {
   
   void close_R() {
@@ -53,16 +53,3 @@ private:
   std::list<double *> Q2_;
   bool compute_svd_;
 };
-*/
-
-int main(int argc, char **argv) {
-  // initialize the random number generator
-  unsigned long seed = sf_randseed();
-  hadoop_message("seed = %u\n", seed);
-    
-  // create typed bytes files
-  TypedBytesInFile in(stdin);
-  TypedBytesOutFile out(stdout);
-
-    
-}

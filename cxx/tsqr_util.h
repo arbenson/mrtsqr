@@ -206,5 +206,6 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
     return false;
   }
 
+  hadoop_message("QR SUCCESS!\n");
   return true;
 }

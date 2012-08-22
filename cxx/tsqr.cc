@@ -27,13 +27,11 @@
 
 std::string pseudo_uuid() {
   char buf[32];
-
   snprintf(buf, sizeof(buf), "%x%x%x%x",
 	   (unsigned int) sf_randint(0, 2000000000),
 	   (unsigned int) sf_randint(0, 2000000000),
 	   (unsigned int) sf_randint(0, 2000000000),
 	   (unsigned int) sf_randint(0, 2000000000));
-
   std::string uuid(buf);
   return uuid;
 }
@@ -501,12 +499,14 @@ public:
   void close() {}
 
   void output() {
+    // Storage for R
     double *R_matrix = (double *) malloc(num_cols_ * num_cols_ * sizeof(double));
     assert(R_matrix);
     size_t num_rows = row_accumulator_.size() / num_cols_;
     hadoop_message("nrows: %d, ncols: %d\n", num_rows, num_cols_);
     lapack_full_qr(&row_accumulator_[0], R_matrix, num_rows, num_cols_, num_rows);
 
+    // output R
     out_.write_list_start();
     // Specify output file
     std::string output_file = "R_" + mapper_id_;
@@ -514,6 +514,8 @@ public:
     // Specify actual key
     out_.write_string_stl(mapper_id_);
     out_.write_list_end();
+
+    hadoop_message("Output: R");
     out_.write_list_start();
     for (size_t i = 0; i < num_cols_; ++i) {
       for (size_t j = 0; j < num_cols_; ++j) {
@@ -522,22 +524,26 @@ public:
     }
     out_.write_list_end();
 
-    /*
     // output (Q, keys)
-    // write key
+    out_.write_list_start();
+    // Specify output file
+    output_file = "Q_" + mapper_id_;
+    out_.write_string_stl(output_file);
+    // Specify actual key
     out_.write_string_stl(mapper_id_);
+    out_.write_list_end();
 
     // start value write
     out_.write_list_start();
 
-    // write Q
+    hadoop_message("Output: Q");
     out_.write_list_start();
     for (size_t i = 0; i < row_accumulator_.size(); ++i) {
       out_.write_double(row_accumulator_[i]);
     }
     out_.write_list_end();
 
-    // write keys
+    hadoop_message("Output: keys");
     out_.write_list_start();
     for (std::list<typedbytes_opaque>::iterator it = keys_.begin();
          it != keys_.end(); ++it) {
@@ -548,7 +554,6 @@ public:
 
     // end value write
     out_.write_list_end();
-    */
   }
 
 private:
