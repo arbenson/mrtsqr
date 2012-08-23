@@ -5,13 +5,10 @@ util.py
 Utility routines for the tsqr and regression code.
 """
 
-import sys
 import os
-import dumbo.util
-
-def setstatus(msg):
-    print >>sys.stderr, "Status:", msg
-    dumbo.util.setstatus(msg)
+import subprocess
+import sys
+import time
 
 def array2list(row):
     return [float(val) for val in row]
@@ -31,7 +28,27 @@ def flatten(l, ltypes=(list, tuple)):
                 l[i:i + 1] = l[i]
         i += 1
     return ltype(l)
-        
+
+def parse_matrix_txt(mpath):
+    try:
+        f = open(mpath, 'r')
+    except:
+        # We may be expecting only the file to be distributed
+        # with the script
+        f = open(mpath.split('/')[-1], 'r')        
+    data = []
+    for line in f:
+        ind = line.rfind(')')
+        if ind != -1:
+            line = line[ind+1:]
+        line = line.strip().rstrip().lstrip('[').rstrip(']')
+        line2 = line.split(',')
+        if len(line2) == 1:
+            line2 = line.split()
+        line2 = [float(v) for v in line2]
+        yield line2
+
+    f.close()
 
 class GlobalOptions:
     """ A class to manage passing options to the actual jobs that run. 
@@ -45,7 +62,6 @@ class GlobalOptions:
     Todo: make this have a nicer interface.
     """
     
-    
     def __init__(self,prog=None):
         """ 
         @param prog if prog is specified, then this class sets all
@@ -55,7 +71,6 @@ class GlobalOptions:
         self.cache = {}
         
     def _get_key(self,key,default,typefunc):
-        #print "calling _get_key on ", key, " with default", str(default)
         if key in self.cache:
             return typefunc(self.cache[key])
         
@@ -78,11 +93,9 @@ class GlobalOptions:
         
     def getstrkey(self,key,default=None):
         return self._get_key(key,default,str)
-        
-        
+
     def getintkey(self,key,default=None):
-        return self._get_key(key,default,int)
-        
+        return self._get_key(key,default,int)        
             
     def setkey(self,key,value):
         if self.prog:
@@ -101,3 +114,70 @@ class GlobalOptions:
         for key,value in self.cache.items():
             self.prog.addopt('param',str(key)+'='+str(value))
         
+
+"""
+CommandManager is our cheapy build system.
+"""
+class CommandManager:
+    def __init__(self, verbose=True):
+        self.verbose = verbose
+        self.times = []
+        self.split = '-'*60
+
+    # simple wrapper around printing with verbose option
+    def output(self, msg, split=False):
+        if self.verbose:
+            if split:
+                print self.split
+            print msg
+            if split:
+                print self.split
+
+     # print error messages and exit with failure
+    def error(self, msg, code=1):
+        print msg
+        sys.exit(code)
+
+    def exec_cmd(self, cmd):
+        self.output('(command is: %s)' % (cmd), True)
+        t0 = time.time()
+        retcode = subprocess.call(cmd, shell=True)
+        self.times.append(time.time() - t0)
+        # TODO(arbenson): make it more obvious when something fails
+        return retcode
+
+    # simple wrapper for running dumbo scripts with options provided as a list
+    def run_dumbo(self, script, hadoop='', opts=[]):
+        cmd = 'dumbo start ' + script
+        if hadoop != '':
+            cmd += ' -hadoop '
+            cmd += hadoop
+        for opt in opts:
+            cmd += ' '
+            cmd += opt
+        self.exec_cmd(cmd)
+
+    def copy_from_hdfs(self, inp, outp, delete=True):
+        if delete and os.path.exists(outp):
+          os.remove(outp)
+        copy_cmd = 'hadoop fs -copyToLocal ' \
+                   + '%s/part-00000 %s' % (inp, outp)
+        self.exec_cmd(copy_cmd)
+
+    def copy_to_hdfs(self, inp, outp):
+        copy_cmd = 'hadoop fs -copyFromLocal %s %s' % (inp, outp)
+        self.exec_cmd(copy_cmd)
+
+    # parse a sequence file
+    def parse_seq_file(self, inp, output=None):
+        path = os.path.dirname(__file__)
+        # TODO(arbenson): import the files instead of this hack
+        reader = os.path.join(path,
+                              'hyy-python-hadoop/examples/SequenceFileReader.py')
+        if not os.path.exists(reader):
+            self.error('Could not find sequence file reader!')
+        if output is None:
+            output = inp + '.out'
+        parse_cmd = 'python %s %s > %s' % (reader, inp, output)
+        self.exec_cmd(parse_cmd)
+

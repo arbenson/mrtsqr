@@ -1,14 +1,14 @@
 #!/usr/bin/env dumbo
 
 """
-tsqr.py
+Cholesky.py
 ===========
 
-Driver code for tsqr.
+Implement a Cholesky QR algorithm using dumbo and numpy.
 
 Example usage:
-dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 -reduce_schedule 20,1 \
--hadoop icme-hadoop1
+dumbo start CholeskyQR.py -mat A_800M_10.bseq -ncols 10 -nummaptasks 30 \
+-reduce_schedule 20,1 -hadoop icme-hadoop1
 
 
 Austin R. Benson (arbenson@stanford.edu)
@@ -16,17 +16,21 @@ David F. Gleich
 Copyright (c) 2012
 """
 
-import mrmc
 import dumbo
-import util
+import mrmc
 import os
+import sys
+import util
 
 # create the global options structure
 gopts = util.GlobalOptions()
-
+    
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
+    ncols = gopts.getintkey('ncols')
+    if ncols <= 0:
+       sys.exit('ncols must be a positive integer')
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
@@ -35,17 +39,14 @@ def runner(job):
         else:
             nreducers = int(part)
             if i == 0:
-                mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
-                                         isfinal=False)
-                isfinal = False
+                mapper = mrmc.AtA(blocksize=blocksize)
+                reducer = mrmc.ArraySumReducer
             else:
                 mapper = mrmc.ID_MAPPER
-                isfinal = True
-            job.additer(mapper=mapper,
-                        reducer=mrmc.SerialTSQR(blocksize=blocksize,
-                                                isreducer=True,
-                                                isfinal=isfinal),
-                        opts = [('numreducetasks', str(nreducers))])    
+                reducer = mrmc.Cholesky(ncols=ncols)
+                nreducers = 1
+            job.additer(mapper=mapper, reducer=reducer,
+                        opts=[('numreducetasks', str(nreducers))])
 
 def starter(prog):
     # set the global opts    
@@ -53,6 +54,7 @@ def starter(prog):
     
     gopts.getintkey('blocksize',3)
     gopts.getstrkey('reduce_schedule','1')
+    gopts.getintkey('ncols', -1)    
 
     mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
@@ -60,7 +62,7 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output', '%s-qrr%s'%(matname, matext))
+        prog.addopt('output','%s-chol-qrr%s'%(matname,matext))
 
     gopts.save_params()
 

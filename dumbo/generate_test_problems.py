@@ -34,6 +34,9 @@ import util
 # create the global options structure
 gopts = util.GlobalOptions()
 
+def setstatus(msg):
+    print >>sys.stderr, "Status:", msg
+    dumbo.util.setstatus(msg)
 
 def first_mapper(data):
     """ This mapper doesn't take any input, and generates the R factor. """
@@ -48,37 +51,37 @@ def first_mapper(data):
     m = int(os.getenv('nrows'))
     k = int(os.getenv('maprows'))/n
     s = float(m)/float(n)
-    util.setstatus(
+    setstatus(
         "generating %i-by-%i R matrix with scale factor %i/%i=%s"%(
         n, n, m, n, s))
     
     R = numpy.triu(numpy.ones((n,n)))/math.sqrt(s)
     
     for i in xrange(k):
-        util.setstatus(
+        setstatus(
             'step %i/%i: generating local %i-by-%i Q matrix'%(i+1,k,n,n))
         
         Q = numpy.linalg.qr(numpy.random.randn(n,n))[0] # just the Q factor
-        util.setstatus('step %i/%i: multiplying local matrix'%(i+1,k))
+        setstatus('step %i/%i: multiplying local matrix'%(i+1,k))
         A = Q.dot(R)
-        util.setstatus('step %i/%i: outputting %i rows'%(i+1,k,A.shape[0]))
+        setstatus('step %i/%i: outputting %i rows'%(i+1,k,A.shape[0]))
         for row in A:
             key = random.randint(0, 4000000000)
             yield key, util.array2list(row)
             
 def localQoutput(rows):
     
-    util.setstatus('converting to numpy array')
+    setstatus('converting to numpy array')
     A = numpy.array(rows)
     localm = A.shape[0]
     
-    util.setstatus('generating local Q of size %i-by-%i'%(localm,localm))
+    setstatus('generating local Q of size %i-by-%i'%(localm,localm))
     Q = numpy.linalg.qr(numpy.random.randn(localm,localm))[0] # just the Q factor
-    util.setstatus(
+    setstatus(
         'multiplying %i-by-%i A by %i-by-%i Q'%(localm,A.shape[1],localm,localm))
     A = Q.dot(A)
     
-    util.setstatus('outputting')
+    setstatus('outputting')
     for row in A:
         yield util.array2list(row)
                 
@@ -92,7 +95,7 @@ def second_mapper(data):
     totalrows = 0
     totalouts = 0
     rows = []
-    util.setstatus('acquiring data with ncols=%i'%(n))
+    setstatus('acquiring data with ncols=%i'%(n))
     
     for key,value in data:
         assert(len(value) == n)
@@ -110,7 +113,7 @@ def second_mapper(data):
             
             # reset rows, status
             rows = []
-            util.setstatus('acquiring data with ncols=%i'%(n))
+            setstatus('acquiring data with ncols=%i'%(n))
             
             
     if len(rows) > 0:

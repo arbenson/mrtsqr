@@ -1,33 +1,32 @@
 #!/usr/bin/env dumbo
 
 """
-tsqr.py
+AtA.py
 ===========
 
-Driver code for tsqr.
+Driver code for A^T*A.
 
 Example usage:
-dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 -reduce_schedule 20,1 \
--hadoop icme-hadoop1
-
+dumbo start AtA.py -mat A_matrix -reduce_schedule 1 -hadoop icme-hadoop1
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
 Copyright (c) 2012
 """
 
-import mrmc
-import dumbo
-import util
 import os
+import util
+import sys
+import dumbo
+import time
+import numpy
+import mrmc
 
-# create the global options structure
 gopts = util.GlobalOptions()
 
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
         if part.startswith('s'):
@@ -35,17 +34,15 @@ def runner(job):
         else:
             nreducers = int(part)
             if i == 0:
-                mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
-                                         isfinal=False)
-                isfinal = False
+                mapper = mrmc.AtA(blocksize=blocksize)
+                reducer = mrmc.ArraySumReducer
             else:
                 mapper = mrmc.ID_MAPPER
-                isfinal = True
-            job.additer(mapper=mapper,
-                        reducer=mrmc.SerialTSQR(blocksize=blocksize,
-                                                isreducer=True,
-                                                isfinal=isfinal),
-                        opts = [('numreducetasks', str(nreducers))])    
+                reducer = mrmc.ArraySumReducer()
+                nreducers = 1
+            job.additer(mapper=mapper, reducer=reducer,
+                        opts=[('numreducetasks', str(nreducers))])
+
 
 def starter(prog):
     # set the global opts    
@@ -60,9 +57,10 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output', '%s-qrr%s'%(matname, matext))
+        prog.addopt('output','%s-ata%s'%(matname,matext))
 
     gopts.save_params()
-
+    
 if __name__ == '__main__':
+    import dumbo
     dumbo.main(runner, starter)
