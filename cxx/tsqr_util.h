@@ -1,3 +1,6 @@
+#ifndef MRTSQR_CXX_TSQR_UTIL_H_
+#define MRTSQR_CXX_TSQR_UTIL_H_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -209,3 +212,5 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
   hadoop_message("QR SUCCESS!\n");
   return true;
 }
+
+#endif  // MRTSQR_CXX_TSQR_UTIL_H_

@@ -4,6 +4,7 @@
  */
 
 #include "typedbytes.h"
+#include "stdio.h"
 
 static inline void push_opaque_typecode(typedbytes_opaque& buffer,
                                         TypedBytesType code) {
@@ -62,18 +63,21 @@ bool TypedBytesInFile::_read_opaque_primitive(typedbytes_opaque& buffer,
   case TypedBytesString:
   case TypedBytesByteSequence:
     len = _read_length();
+    fprintf(stderr, "read len is: %d\n", len);
     while (len > 0) {
       // stream_ to buffer in longbuf bytes at a time.
       if (len >= 8) {
         fread(&longbuf, sizeof(int64_t), 1, stream_);
         push_opaque_bytes(buffer, (unsigned char*) &longbuf, sizeof(int64_t));
+        len -= sizeof(int64_t);
       } else {
         fread(&longbuf, len, 1, stream_);
         push_opaque_bytes(buffer, (unsigned char*) &longbuf, len);
+        break;
       }
     }
     break;
-            
+
   default:
     return false;
   }
@@ -94,7 +98,7 @@ bool TypedBytesInFile::_read_opaque(typedbytes_opaque& buffer, bool list) {
     for (int i = 0; i < len; ++i) {
       _read_opaque(buffer, false);
     }
-  } else if(t==TypedBytesMap) {
+  } else if(t == TypedBytesMap) {
     typedbytes_length len = read_typedbytes_sequence_length();
     push_opaque_length(buffer, len);
     for (int i = 0; i < len; ++i) {
