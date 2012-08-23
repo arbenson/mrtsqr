@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 STREAMING_JAR=/usr/lib/hadoop/contrib/streaming/hadoop-streaming-0.20.2-cdh3u4.jar
 
 hadoop fs -rmr FULL_TESTING_1
