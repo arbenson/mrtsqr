@@ -58,10 +58,8 @@ public:
         if (in_.can_be_double(nexttype)) {
           row.push_back(in_.convert_double());
         } else {
-          fprintf(stderr, 
-                  "error: row %zi, col %zi has a non-double-convertable type\n",
-                  num_total_rows_, row.size());
-          exit(-1);
+          hadoop_error("row %zi, col %zi has a non-double-convertable type\n",
+                       num_total_rows_, row.size());
         }
       }
     } else if (code == TypedBytesList) {
@@ -72,10 +70,8 @@ public:
           row.push_back(in_.convert_double());
         } else {
           hadoop_message("row has a non-double-convertable type!!\n");
-          fprintf(stderr, 
-                  "error: row %zi, col %zi has a non-double-convertable type\n",
-                  num_total_rows_, row.size());
-          exit(-1);
+          hadoop_error("row %zi, col %zi has a non-double-convertable type\n",
+                       num_total_rows_, row.size());
         }
         nexttype = in_.next_type();
       }
@@ -84,12 +80,8 @@ public:
       row.resize(len / 8);
       in_.read_string_data((unsigned char *) &row[0], (size_t) len);
     } else {
-      hadoop_message("row is not a list, vector, or string\n");
-      hadoop_message("code is: %d\n", code);
-      fprintf(stderr,
-              "error: row %zi is a not a list, vector, or string\n",
-              num_total_rows_);
-      exit(-1);
+      hadoop_error("row %zi is a not a list, vector, or string (code is: %d)\n",
+                   num_total_rows_, code);
     }
   }
 
@@ -111,8 +103,7 @@ public:
         if (feof(in_.get_stream())) {
           break;
         } else {
-          hadoop_message("invalid key: row %i\n", num_total_rows_);
-          exit(-1);
+          hadoop_error("invalid key: row %i\n", num_total_rows_);
         }
       }
       collect(key, row);
@@ -232,7 +223,7 @@ public:
     out_.write_list_start();
     for (size_t i = 0; i < num_cols_; ++i) {
       for (size_t j = 0; j < num_cols_; ++j) {
-        out_.write_double(R_matrix[i + j * num_cols_]);
+        out_.write_double(R_matrix[j + i * num_cols_]);
       }
     }
     out_.write_list_end();
@@ -363,7 +354,8 @@ public:
   FullTSQRMap3(TypedBytesInFile& in_, TypedBytesOutFile& out_,
                size_t blocksize_, size_t rows_per_record_, size_t num_cols)
     : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
-    num_cols_ = 10;
+    num_cols_ = num_cols;
+    Q2_path_ = "Q2.txt.out";
   }
 
   bool read_key_val_pair(typedbytes_opaque& key,
@@ -374,30 +366,27 @@ public:
     }
     TypedBytesType code = in_.next_type();
     if (code != TypedBytesList) {
-      hadoop_message("error: expected a value list!\n");
-      exit(-1);
+      hadoop_error("expected a value list!\n");
     }
     read_full_row(value); 
     code = in_.next_type();
     if (code != TypedBytesList) {
-      hadoop_message("error: expected a key list!\n");
-      exit(-1);
+      hadoop_error("expected a key list!\n");
     }
     TypedBytesType nexttype = in_.next_type();
     while (nexttype != TypedBytesListEnd) {
       if (nexttype != TypedBytesString) {
-        hadoop_message("error: expected a string key!\n");
-	exit(-1);
+        hadoop_error("expected a string key!\n");
       }
       typedbytes_length len = in_.read_string_length();
       std::string str(len, 0);
       in_.read_string_data((unsigned char *) &str[0], (size_t) len);
+      strings.push_back(str);
       nexttype = in_.next_type();
     }
     nexttype = in_.next_type();
     if (nexttype != TypedBytesListEnd) {
-      hadoop_message("error: expected the end of the value list!\n");
-      exit(-1);
+      hadoop_error("expected the end of the value list!\n");
     }
     return true;
   }
@@ -418,27 +407,100 @@ public:
         if (feof(in_.get_stream())) {
           break;
         } else {
-          hadoop_message("invalid key: row %i\n", num_total_rows_);
-          exit(-1);
+          hadoop_error("invalid key: row %i\n", num_total_rows_);
         }
       }
-      collect(key, row);
+      collect(key, row, string_keys);
     }
     hadoop_status("final output");
     output();
   }
 
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
-
   void output() {
-    // parse input file of Qs
-    // for each matrix
-    //   call lapack_matmul
+    FILE *f = fopen(Q2_path_.c_str(), "r");
+    assert(f);
+    char b[32768];
+    while (fgets(b, sizeof(b), f)) {
+      char *buf = b;
+      fprintf(stderr, "%s", buf);
+      size_t i;
+      while (*buf != '\0' && *buf++ != '(') ;
+      if (*buf == '\0')
+	hadoop_error("could not find key while parsing matrix\n");
+
+      for (i = 0; buf[i] != '\0' && buf[i] != ')'; ++i) ;
+      if (buf[i] == '\0')
+	hadoop_error("could not find key while parsing matrix\n");
+
+      std::string key((const char *) buf, i);
+      buf += i + 1;
+      while (*buf != '\0' && *buf++ != '[') ;
+      if (*buf == '\0')
+	hadoop_error("could not find value while parsing matrix\n");
+
+      std::vector<double> value;
+      value.reserve(num_cols_ * num_cols_);
+      double val;
+      while (true) {
+	for (i = 0; buf[i] != '\0' && buf[i] != ',' && buf[i] != ']'; ++i) ;
+	if (buf[i] == '\0') {
+	  hadoop_error("could not find value\n");
+	} else if (buf[i] == ',') {
+	  if (sscanf(buf, "%lg,", &val) != 1)
+	    hadoop_error("non-double in value\n");
+	  value.push_back(val);
+	  buf += i + 1;
+	  // skip whitespace
+	  ++buf;
+	} else {
+	  if (sscanf(buf, "%lg]", &val) != 1)
+	    hadoop_error("non-double in value\n");
+	  value.push_back(val);
+          break;
+	}
+      }
+      assert(value.size() == num_cols_ * num_cols_);
+      handle_matmul(key, value);
+    }
   }
+
+  void handle_matmul(std::string& key, std::vector<double>& Q2) {
+    std::map<std::string, std::vector<double>>::iterator Q_it =
+      Q_matrices_.find(key);
+    if (Q_it == Q_matrices_.end())
+      return;
+    
+    std::vector<double>& Q1(Q_it->second);
+
+    std::map<std::string, std::list<std::string>>::iterator key_it =
+      keys_.find(key);
+    assert(key_it != keys_.end());
+    std::list<std::string>& key_output(key_it->second);
+    assert(Q1.size() / num_cols_ == key_output.size());
+
+    double *C= (double *) malloc (Q1.size() * sizeof(double));
+    // result is stored in Q1
+    lapack_tsmatmul(&Q1[0], Q1.size() / num_cols_, num_cols_,
+                    &Q2[0], num_cols_, C);
+
+    size_t ind = 0;
+    for (std::list<std::string>::iterator it = key_output.begin();
+         it != key_output.end(); ++it) {
+      out_.write_string_stl(*it);
+      out_.write_list_start();
+      for (size_t i = 0; i < num_cols_; ++i) {
+	out_.write_double(Q1[ind++]);
+      }
+      out_.write_list_end();
+    }
+  }
+
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
 
 private:
   std::map<std::string, std::vector<double>> Q_matrices_;
   std::map<std::string, std::list<std::string>> keys_;
+  std::string Q2_path_;
 };
 
 // TODO(arbenson): real command-line options
