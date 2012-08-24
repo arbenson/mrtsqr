@@ -479,7 +479,6 @@ public:
     assert(Q1.size() / num_cols_ == key_output.size());
 
     double *C= (double *) malloc (Q1.size() * sizeof(double));
-    // result is stored in Q1
     lapack_tsmatmul(&Q1[0], Q1.size() / num_cols_, num_cols_,
                     &Q2[0], num_cols_, C);
 
@@ -489,7 +488,7 @@ public:
       out_.write_string_stl(*it);
       out_.write_list_start();
       for (size_t i = 0; i < num_cols_; ++i) {
-        out_.write_double(Q1[ind++]);
+        out_.write_double(C[ind++]);
       }
       out_.write_list_end();
     }
