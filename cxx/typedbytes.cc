@@ -63,7 +63,6 @@ bool TypedBytesInFile::_read_opaque_primitive(typedbytes_opaque& buffer,
   case TypedBytesString:
   case TypedBytesByteSequence:
     len = _read_length();
-    fprintf(stderr, "read len is: %d\n", len);
     while (len > 0) {
       // stream_ to buffer in longbuf bytes at a time.
       if (len >= 8) {
