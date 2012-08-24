@@ -42,6 +42,15 @@ void hadoop_status(const char* format, ...) {
   va_end (args);
 }
 
+void hadoop_error(const char* format, ...) {
+  va_list args;
+  va_start (args, format);  
+  fprintf(stderr, "error: ");
+  vfprintf(stderr, format, args);
+  va_end(args);
+  exit(-1);
+}
+
 void hadoop_counter(const char* name, int val) {
   fprintf(stderr, "reporter:counter:Program,%s,%i\n", name, val);
 }
@@ -55,6 +64,9 @@ extern "C" {
               double *A, int *lda, double *beta, double *C, int *ldc);
   void daxpy_(int *n, double *alpha, double *x, int *incx, double *y, int *incy);
   void dpotrf_(char *uplo, int *n, double *a, int *lda, int *info);
+  void dgemm_(char *transa, char *transb, int *m, int *n, int *k, double *alpha,
+              double *A, int *lda, double *B, int *ldb, double *beta, double *C,
+              int *ldc);
 }
 
 /** Run a LAPACK daxpy
@@ -210,6 +222,26 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
   }
 
   hadoop_message("QR SUCCESS!\n");
+  return true;
+}
+
+bool lapack_tsmatmul(double *A, size_t nrows_A, size_t ncols_A,
+		     double *B, size_t ncols_B, double *C) {
+  char transa = 'n';
+  char transb = 'n';
+  int m = (int) nrows_A;
+  int n = (int) ncols_B;
+  int k = (int) ncols_A;
+  double alpha = 1;
+  int lda = m;
+  int ldb = k;
+  double beta = 0;
+  int ldc = m;
+  
+  // Store result in A, since we are assuming B is square
+  dgemm_(&transa, &transb, &m, &n, &k, &alpha, A,
+         &lda, B, &ldb, &beta, C, &ldc);
+
   return true;
 }
 
