@@ -29,10 +29,10 @@
 std::string pseudo_uuid() {
   char buf[32];
   snprintf(buf, sizeof(buf), "%x%x%x%x",
-	   (unsigned int) sf_randint(0, 2000000000),
-	   (unsigned int) sf_randint(0, 2000000000),
-	   (unsigned int) sf_randint(0, 2000000000),
-	   (unsigned int) sf_randint(0, 2000000000));
+           (unsigned int) sf_randint(0, 2000000000),
+           (unsigned int) sf_randint(0, 2000000000),
+           (unsigned int) sf_randint(0, 2000000000),
+           (unsigned int) sf_randint(0, 2000000000));
   std::string uuid(buf);
   return uuid;
 }
@@ -179,7 +179,7 @@ public:
 class FullTSQRMap1 : public MatrixHandler {
 public:
   FullTSQRMap1(TypedBytesInFile& in_, TypedBytesOutFile& out_,
-	       size_t blocksize_, size_t rows_per_record_)
+               size_t blocksize_, size_t rows_per_record_)
     : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
     mapper_id_ = pseudo_uuid();
   }
@@ -426,38 +426,38 @@ public:
       size_t i;
       while (*buf != '\0' && *buf++ != '(') ;
       if (*buf == '\0')
-	hadoop_error("could not find key while parsing matrix\n");
+        hadoop_error("could not find key while parsing matrix\n");
 
       for (i = 0; buf[i] != '\0' && buf[i] != ')'; ++i) ;
       if (buf[i] == '\0')
-	hadoop_error("could not find key while parsing matrix\n");
+        hadoop_error("could not find key while parsing matrix\n");
 
       std::string key((const char *) buf, i);
       buf += i + 1;
       while (*buf != '\0' && *buf++ != '[') ;
       if (*buf == '\0')
-	hadoop_error("could not find value while parsing matrix\n");
+        hadoop_error("could not find value while parsing matrix\n");
 
       std::vector<double> value;
       value.reserve(num_cols_ * num_cols_);
       double val;
       while (true) {
-	for (i = 0; buf[i] != '\0' && buf[i] != ',' && buf[i] != ']'; ++i) ;
-	if (buf[i] == '\0') {
-	  hadoop_error("could not find value\n");
-	} else if (buf[i] == ',') {
-	  if (sscanf(buf, "%lg,", &val) != 1)
-	    hadoop_error("non-double in value\n");
-	  value.push_back(val);
-	  buf += i + 1;
-	  // skip whitespace
-	  ++buf;
-	} else {
-	  if (sscanf(buf, "%lg]", &val) != 1)
-	    hadoop_error("non-double in value\n");
-	  value.push_back(val);
+        for (i = 0; buf[i] != '\0' && buf[i] != ',' && buf[i] != ']'; ++i) ;
+        if (buf[i] == '\0') {
+          hadoop_error("could not find value\n");
+        } else if (buf[i] == ',') {
+          if (sscanf(buf, "%lg,", &val) != 1)
+            hadoop_error("non-double in value\n");
+          value.push_back(val);
+          buf += i + 1;
+          // skip whitespace
+          ++buf;
+        } else {
+          if (sscanf(buf, "%lg]", &val) != 1)
+            hadoop_error("non-double in value\n");
+          value.push_back(val);
           break;
-	}
+        }
       }
       assert(value.size() == num_cols_ * num_cols_);
       handle_matmul(key, value);
@@ -489,7 +489,7 @@ public:
       out_.write_string_stl(*it);
       out_.write_list_start();
       for (size_t i = 0; i < num_cols_; ++i) {
-	out_.write_double(Q1[ind++]);
+        out_.write_double(Q1[ind++]);
       }
       out_.write_list_end();
     }
