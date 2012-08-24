@@ -1,15 +1,6 @@
-/**
- * @file tsqr.cc
- * Implement TSQR in C++ using atlas and hadoop streaming with typedbytes.
- * @author David F. Gleich
- * @author Austin R. Benson
- */
-
-/**
- * History
- * -------
- * :2011-01-28: Initial coding
- */
+// Implement TSQR in C++ using atlas and hadoop streaming with typedbytes.
+// David F. Gleich
+// Austin R. Benson
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,24 +103,19 @@ public:
     output();
   }
     
-  /** Allocate the local matrix and set to zero
-   * @param nr the number of rows
-   * @param nc the number of cols
-   */
-  virtual void alloc(size_t nr, size_t nc) {
-    local_matrix_.resize(nr * nc);
-    for (size_t i = 0; i < nr * nc; ++i) {
+  // Allocate the local matrix and set to zero
+  virtual void alloc(size_t num_rows, size_t num_cols) {
+    local_matrix_.resize(num_rows * num_cols);
+    for (size_t i = 0; i < num_rows * num_cols; ++i) {
       local_matrix_[i] = 0.;
     }
-    num_rows_ = nr;
-    num_cols_ = nc;
+    num_rows_ = num_rows;
+    num_cols_ = num_cols;
     num_local_rows_ = 0;
   }    
     
-  /** Handle the first input row.
-   * The first row of the input is special, and so we handle
-   * it differently.
-   */
+  // Handle the first input row.  We use the first row to gather data
+  // about the matrix.
   virtual void first_row() {
     typedbytes_opaque key;
     std::vector<double> row;
@@ -182,10 +168,11 @@ public:
                size_t blocksize_, size_t rows_per_record_)
     : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
     mapper_id_ = pseudo_uuid();
+    num_cols_ = 0;
   }
   virtual ~FullTSQRMap1() {}
 
-  virtual void first_row() {
+  void first_row() {
     typedbytes_opaque key;
     std::vector<double> row;
     read_key_val_pair(key, row);
@@ -194,7 +181,7 @@ public:
     collect(key, row);
   }
 
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {
+  void collect(typedbytes_opaque& key, std::vector<double>& value) {
     keys_.push_back(key);
     for (size_t i = 0; i < value.size(); ++i) {
       row_accumulator_.push_back(value[i]);
@@ -203,12 +190,24 @@ public:
   }
 
   void output() {
+    // num_cols_ is 0 if the task did not receive any data
+    if (num_cols_ == 0) {
+      return;
+    }
     // Storage for R
     double *R_matrix = (double *) malloc(num_cols_ * num_cols_ * sizeof(double));
     assert(R_matrix);
     size_t num_rows = row_accumulator_.size() / num_cols_;
     hadoop_message("nrows: %d, ncols: %d\n", num_rows, num_cols_);
-    lapack_full_qr(&row_accumulator_[0], R_matrix, num_rows, num_cols_, num_rows);
+    // lapack is column major, unfortunately
+    double *matrix_copy = (double *) malloc(num_rows_ * num_cols_ * sizeof(double));
+    assert(matrix_copy);
+    for (size_t i = 0; i < num_rows_; ++i) {
+      for (size_t j = 0; j < num_cols_; ++j) {
+        matrix_copy[i + j * num_rows] = row_accumulator_[i * num_cols_ + j];
+      }
+    }
+    lapack_full_qr(matrix_copy, R_matrix, num_rows, num_cols_, num_rows);
 
     // output R
     out_.write_list_start();
@@ -241,6 +240,11 @@ public:
     out_.write_list_start();
 
     hadoop_message("Output: Q");
+    for (size_t i = 0; i < num_rows_; ++i) {
+      for (size_t j = 0; j < num_cols_; ++j) {
+        row_accumulator_[i * num_cols_ + j] = matrix_copy[i + j * num_rows];
+      }
+    }
     out_.write_list_start();
     for (size_t i = 0; i < row_accumulator_.size(); ++i) {
       out_.write_double(row_accumulator_[i]);
@@ -278,7 +282,7 @@ public:
 
   virtual ~FullTSQRReduce2() {}
   
-  virtual void first_row() {
+  void first_row() {
     hadoop_message("reading first row!\n");
     typedbytes_opaque key;
     std::vector<double> row;
@@ -287,7 +291,7 @@ public:
     collect(key, row);
   }
 
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {
+  void collect(typedbytes_opaque& key, std::vector<double>& value) {
     keys_.push_back(key);
     for (size_t i = 0; i < value.size(); ++i) {
       row_accumulator_.push_back(value[i]);
@@ -301,7 +305,22 @@ public:
     assert(R_matrix);
     size_t num_rows = row_accumulator_.size() / num_cols_;
     hadoop_message("nrows: %d, ncols: %d\n", num_rows, num_cols_);
-    lapack_full_qr(&row_accumulator_[0], R_matrix, num_rows, num_cols_, num_rows);
+
+    double *matrix_copy = (double *) malloc(num_rows_ * num_cols_ * sizeof(double));
+    assert(matrix_copy);
+    for (size_t i = 0; i < num_rows_; ++i) {
+      for (size_t j = 0; j < num_cols_; ++j) {
+        matrix_copy[i + j * num_rows] = row_accumulator_[i * num_cols_ + j];
+      }
+    }
+
+    lapack_full_qr(matrix_copy, R_matrix, num_rows, num_cols_, num_rows);
+
+    for (size_t i = 0; i < num_rows_; ++i) {
+      for (size_t j = 0; j < num_cols_; ++j) {
+        row_accumulator_[i * num_cols_ + j] = matrix_copy[i + j * num_rows];
+      }
+    }
 
     // output R
     for (size_t i = 0; i < num_cols_; ++i) {
