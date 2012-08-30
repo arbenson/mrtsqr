@@ -31,16 +31,25 @@ parser.add_option('-i', '--input', dest='input', default='',
                   help='input matrix')
 parser.add_option('-o', '--output', dest='out', default='',
                   help='base string for output of Hadoop jobs')
-parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
-                  help='comma separated list of number of map tasks to use for'
-                       + ' the three jobs')
+parser.add_option('-s', '--schedule', dest='sched', default='40,1',
+                  help='comma separated list of number of reduce tasks')
 parser.add_option('-H', '--hadoop', dest='hadoop', default='',
                   help='name of hadoop for Dumbo')
+parser.add_option('-m', '--nummaptasks', dest='nummaptasks', default=100,
+                  help='name of hadoop for Dumbo')
+parser.add_option('-b', '--blocksize', dest='blocksize', default=3,
+                  help='blocksize')
+parser.add_option('-c', '--use_cholesky', dest='use_cholesky', default=0,
+                  help='provide number of columns for cholesky')
 parser.add_option('-q', '--quiet', action='store_false', dest='verbose',
                   default=True, help='turn off some statement printing')
+parser.add_option('-t', '--times_output', dest='times_out', default='times',
+                  help='file for storing command times')
 
 (options, args) = parser.parse_args()
 cm = util.CommandManager(verbose=options.verbose)
+
+times_out = options.times_out
 
 # Store options in the appropriate variables
 in1 = options.input
@@ -59,18 +68,24 @@ try:
 except:
   cm.error('invalid schedule provided')
 
+nummaptasks = int(options.nummaptasks)
+blocksize = options.blocksize
+
 hadoop = options.hadoop
+
+use_cholesky = int(options.use_cholesky)
 
 
 def tsqr_arinv_iter(in1, out):
-    blocksize = 10
-    
     out1 = out + '_qrr'
-    cm.run_dumbo('tsqr.py', hadoop, ['-mat ' + in1,
-                                     '-blocksize ' + str(blocksize),
-                                     '-output ' + out1,
-                                     '-reduce_schedule 20,1'])
-    cm.output('running tsqr...')
+    script = 'tsqr.py'
+    args = ['-mat ' + in1, '-blocksize ' + str(blocksize),
+            '-output ' + out1, '-reduce_schedule %d,%d' % (sched[0], sched[1])]
+    if use_cholesky != 0:
+      script = 'CholeskyQR.py'
+      args += ['-ncols %d' % use_cholesky]
+
+    cm.run_dumbo(script, hadoop, args)
 
     R_file = out1 + '_R'
     if os.path.exists(R_file):
@@ -87,4 +102,10 @@ def tsqr_arinv_iter(in1, out):
 tsqr_arinv_iter(in1, out)
 tsqr_arinv_iter(out + '_Q', out + '_IR')
 
-cm.output('times: ' + str(cm.times))
+try:
+  f = open(times_out, 'a')
+  f.write('times: ' + str(cm.times))
+  f.write('\n')
+  f.close
+except:
+  print str(cm.times)
