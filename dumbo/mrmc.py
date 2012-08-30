@@ -34,7 +34,7 @@ class DataFormatException(Exception):
         return repr(self.value)
 
 
-def starter_helper(prog, use_full=False):
+def starter_helper(prog, use_full=False, use_house=False):
     print 'running starter!'
 
     mypath = os.path.dirname(__file__)
@@ -44,6 +44,8 @@ def starter_helper(prog, use_full=False):
     prog.addopt('file', os.path.join(mypath, 'mrmc.py'))
     if use_full:
         prog.addopt('file', os.path.join(mypath, 'full.py'))
+    if use_house:
+        prog.addopt('file', os.path.join(mypath, 'HouseholderQR.py'))
 
     splitsize = prog.delopt('split_size')
     if splitsize is not None:
@@ -243,7 +245,7 @@ class TSMatMul(MatrixHandler):
         # reset data and add flushed update to local copy
         self.data = []
         for i, row in enumerate(out_mat.getA()):
-            yield self.keys[i], row
+            yield self.keys[i], struct.pack('d' * len(row), *row)
 
         # clear the keys
         self.keys = []
