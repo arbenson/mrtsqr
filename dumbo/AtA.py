@@ -29,19 +29,16 @@ def runner(job):
     schedule = gopts.getstrkey('reduce_schedule')
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
-        if part.startswith('s'):
-            mrmc.add_splay_iteration(job, part)
+        nreducers = int(part)
+        if i == 0:
+            mapper = mrmc.AtA(blocksize=blocksize)
+            reducer = mrmc.ArraySumReducer
         else:
-            nreducers = int(part)
-            if i == 0:
-                mapper = mrmc.AtA(blocksize=blocksize)
-                reducer = mrmc.ArraySumReducer
-            else:
-                mapper = mrmc.ID_MAPPER
-                reducer = mrmc.ArraySumReducer()
-                nreducers = 1
-            job.additer(mapper=mapper, reducer=reducer,
-                        opts=[('numreducetasks', str(nreducers))])
+            mapper = mrmc.ID_MAPPER
+            reducer = mrmc.ArraySumReducer()
+            nreducers = 1
+        job.additer(mapper=mapper, reducer=reducer,
+                    opts=[('numreducetasks', str(nreducers))])
 
 
 def starter(prog):
