@@ -18,30 +18,17 @@ import HouseholderQR
 # create the global options structure
 gopts = util.GlobalOptions()
 
-#('picked_set: ', ['d32ee466f24b11e19082002590764929'])
-#('alpha: ', 0.46301049163578767)
-#('tau: ', 1.0046680219967319)
-#('sigma: ', 0.01003504865849064)
-
-def parse_extra_info(f):
-  # TODO(arbenson): implement this, should return alpha, sigma, picked_set
-  alpha = 0.46301049
-  sigma = 0.010035
-  picked_set = ['d32ee466f24b11e19082002590764929']
-  return (alpha, sigma, picked_set)
-
 def runner(job):
     step = gopts.getintkey('step')
     if step == -1:
       print "need step parameter!"
       sys.exit(-1)
 
-    extra_info_path = gopts.getstrkey('extra_info_path')
-    alpha, sigma, picked_set = parse_extra_info(extra_info_path)
+    info_file = gopts.getstrkey('info_file')
    
-    mapper = HouseholderQR.HouseholderMap3(alpha, sigma, step, picked_set)
+    mapper = HouseholderQR.HouseholderMap3(step, info_file)
     reducer = mrmc.ID_REDUCER
-    job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks','0')])
+    job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks', '0')])
 
 def starter(prog):
     # set the global opts
@@ -57,10 +44,11 @@ def starter(prog):
 
     step = int(prog.getopt('step'))
 
-    path = 'extra_info_path'
+    path = 'info_file'
     path_opt = prog.delopt(path)
     if not path_opt:
       return "'%s' not specified" % path
+    prog.addopt('file', os.path.join(os.path.dirname(__file__), path_opt))
     gopts.getstrkey(path, path_opt)
 
     gopts.getintkey('step', -1)

@@ -18,14 +18,18 @@ import HouseholderQR
 # create the global options structure
 gopts = util.GlobalOptions()
 
-def parse_picked_set():
-  return []
-
 def runner(job):
-  mapper = mrmc.ID_MAPPER
-  # TODO(arbenson): parse out picked_set
-  picked_set = parse_picked_set()
-  reducer = HouseholderQR.HouseholderRed2(picked_set)
+  step = gopts.getintkey('step')
+  if step == -1:
+    print "need step parameter!"
+    sys.exit(-1)
+
+  info_file = None
+  if step != 0:
+    info_file = gopts.getstrkey('info_file')
+
+  mapper = mrmc.ID_MAPPER  
+  reducer = HouseholderQR.HouseholderRed2(step, info_file)
   job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks', '1')])
 
 def starter(prog):
@@ -39,6 +43,19 @@ def starter(prog):
   output = prog.getopt('output')
   if not output:
     prog.addopt('output','%s-HHQR-2%s'%(matname,matext))
+
+  step = int(prog.getopt('step'))
+
+  if step != 0:
+    path = 'info_file'
+    path_opt = prog.delopt(path)
+    if not path_opt:
+      return "'%s' not specified" % path
+    prog.addopt('file', os.path.join(os.path.dirname(__file__), path_opt))
+    gopts.getstrkey(path, path_opt)
+
+  gopts.getintkey('step', -1)
+
 
   gopts.save_params()
 

@@ -8,11 +8,9 @@ David F. Gleich
 Copyright (c) 2012
 """
 
-import sys
-import time
-import struct
-import uuid
+# TODO(arbenson): hadoop status updates
 
+import struct
 import numpy
 import math
 
@@ -23,9 +21,36 @@ import dumbo
 import dumbo.backends.common
 from dumbo import opt
 
+def parse_info(f):
+  PICKED_SET = '(picked_set) '
+  ALPHA = '(alpha) '
+  TAU = '(tau) '
+  SIGMA = '(sigma) '
+  
+  info = {PICKED_SET: None, ALPHA: None, TAU: None, SIGMA: None}
+  
+  # TODO(arbenson): This is ugly.  The file is small and specific, so things
+  # are annoying to parse.  Make this cleaner.
+  for key in info:
+    info_data = open(f, 'r')
+    for line in info_data:
+      if len(line) > len(key) and line[:len(key)] == key:
+        # Handle doubles
+        if key != PICKED_SET:
+          info[key] = float(line[len(key):])
+        else:
+          line = line[len(key):]
+          line = line.lstrip('[').rstrip(']\n').split(',')
+          line = [k.lstrip().lstrip('\'').rstrip('\'') for k in line]
+          info[key] = line
+    info_data.close()
+
+  return (info[PICKED_SET], info[ALPHA], info[TAU], info[SIGMA])
+
+
 @opt("getpath", "yes")
 class HouseholderMap1(mrmc.MatrixHandler):
-  def __init__(self, step, tau, picked_set, w, last_step=False, blocksize=500):
+  def __init__(self, step, last_step, info_file=None, w_file=None, blocksize=500):
     mrmc.MatrixHandler.__init__(self)
     self.data = []
     self.A_data = []
@@ -35,17 +60,30 @@ class HouseholderMap1(mrmc.MatrixHandler):
     self.first_step = (step == 0)
     self.last_step = last_step
 
-    self.tau = tau
-    self.picked_set = picked_set
-    self.w = w
+    if self.first_step:
+      self.picked_set = []
+    else:
+      self.picked_set, _, self.tau, _ = parse_info(info_file)
+      self.w = self.parse_w(w_file)
 
     self.nrows = 0
-    self.blocksize = blocksize    
+    self.blocksize = blocksize
+
+  def parse_w(self, f):
+    w = []
+    for line in open(f, 'r'):
+      ind = line.find(')') + 2
+      w.append(float(line[ind:]))
+    return w
 
   def store(self, key, value):
-    if key not in self.picked_set and not self.last_step:
-      self.data.append((key, value[self.step]))
-    self.A_data.append((key, value))
+    if self.last_step:
+      if key in self.picked_set:
+        self.A_data.append((key, value))
+    else:
+      if key not in self.picked_set:
+        self.data.append((key, value[self.step]))
+      self.A_data.append((key, value))
 
   def collect(self, key, value):
     new_row = [float(v) for v in value]
@@ -55,11 +93,11 @@ class HouseholderMap1(mrmc.MatrixHandler):
       w = self.w[self.step:]
       if key in self.picked_set:
         if key != last_picked:
-          for i, val in enumerate(self.tau * w):
-            new_row[self.step + i] -= val
+          for i, val in enumerate(w):
+            new_row[self.step + i] -= val * self.tau
       else:
-        for i, val in enumerate([v * self.tau * new_row[self.step - 1] for v in w]):
-          new_row[self.step + i] -= val
+        for i, val in enumerate(w):
+          new_row[self.step + i] -= val * self.tau * new_row[self.step - 1]
   
     self.nrows += 1
     self.store(key, new_row)
@@ -88,12 +126,15 @@ class HouseholderMap1(mrmc.MatrixHandler):
       yield key, val
 
 class HouseholderRed2(dumbo.backends.common.MapRedBase):
-  def __init__(self, picked_set):
-    self.picked_set = picked_set
+  def __init__(self, step, info_file):
+    if step == 0:
+      self.picked_set = []
+    else:
+      self.picked_set, _, _, _ = parse_info(info_file)
     self.picked = None
     self.alpha = None
     self.data = []
-    
+
   def collect(self, key, value):
     if self.picked is None:
       self.picked = key
@@ -105,10 +146,10 @@ class HouseholderRed2(dumbo.backends.common.MapRedBase):
   def close(self):
     eta = numpy.linalg.norm(self.data, 2)
     beta = math.sqrt(eta * eta)
-    beta = -1 * math.copysign(beta, self.alpha)
+    beta = float(-1.0) * math.copysign(beta, self.alpha)
     tau = (beta - self.alpha) / beta
-    sigma = float(1) / (self.alpha - beta)
-    alpha = beta
+    sigma = float(1.0) / (self.alpha - beta)
+    self.alpha = beta
     self.picked_set.append(self.picked)
     yield 'picked_set', self.picked_set
     yield 'alpha', self.alpha
@@ -125,17 +166,15 @@ class HouseholderRed2(dumbo.backends.common.MapRedBase):
 
 @opt("getpath", "yes")
 class HouseholderMap3(mrmc.MatrixHandler):
-  def __init__(self, alpha, sigma, step, picked_set):
+  def __init__(self, step, info_file):
     mrmc.MatrixHandler.__init__(self)
     self.data = []
     self.keys = []
     self.output_keys = []
     self.output_vals = []
-    self.alpha = alpha
-    self.sigma = sigma
     self.step = step
-    self.picked_set = picked_set
-    self.last_picked = picked_set[-1]
+    self.picked_set, self.alpha, _, self.sigma = parse_info(info_file)
+    self.last_picked = self.picked_set[-1]
 
   def collect(self, key, value):
     self.keys.append(key)
@@ -153,10 +192,13 @@ class HouseholderMap3(mrmc.MatrixHandler):
           continue
         else:
           self.output_keys += range(self.step + 1, self.ncols)
-          self.output_vals += row[self.step + 1:]
+          for val in row[self.step + 1:]:
+            self.output_vals.append(val)
       else:
         self.output_keys += range(self.step + 1, self.ncols)
-        self.output_vals += [v * row[self.step] for v in row[self.step + 1:]]
+        mult = row[self.step]
+        for val in row[self.step + 1:]:
+          self.output_vals.append(mult * val)
 
   def __call__(self, data):
     self.collect_data(data)

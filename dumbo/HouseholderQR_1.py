@@ -18,46 +18,22 @@ import HouseholderQR
 # create the global options structure
 gopts = util.GlobalOptions()
 
-#(1, -2.3658255930202912)
-#(2, -1.0505953225529197)
-
-#('picked_set: ', ['d32ee466f24b11e19082002590764929'])
-#('alpha: ', 0.46301049163578767)
-#('tau: ', 1.0046680219967319)
-#('sigma: ', 0.01003504865849064)
-
-def parse_extra_info(f):
-  # TODO(arbenson): implement this, should return tau, picked_set
-  #tau = None
-  #picked_set = []
-
-  tau = 1.00466
-  picked_set = ['d32ee466f24b11e19082002590764929']
-  return (tau, picked_set)
-
-def parse_w(f):
-  # TODO(arbenson): implement this, should set w
-  #w = []
-  w = [-2.3658255930202912, -1.0505953225529197]
-  return w
-
 def runner(job):
     step = gopts.getintkey('step')
     if step == -1:
       print "need step parameter!"
       sys.exit(-1)
 
+    last_step = gopts.getintkey('last_step')
+
     if step == 0:
-      tau = 0
-      picked_set =[]
-      w = []
+        mapper = HouseholderQR.HouseholderMap1(step, last_step)
     else:
-      extra_info_path = gopts.getstrkey('extra_info_path')
-      w_path = gopts.getstrkey('w_path')
-      tau, picked_set = parse_extra_info(extra_info_path)
-      w = parse_w(w_path)
+        info_file = gopts.getstrkey('info_file')
+        w_file = gopts.getstrkey('w_file')
+        mapper = HouseholderQR.HouseholderMap1(step, last_step, info_file, w_file)
    
-    mapper = HouseholderQR.HouseholderMap1(step, tau, picked_set, w)
+
     reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks','0')])
 
@@ -76,13 +52,15 @@ def starter(prog):
     step = int(prog.getopt('step'))
 
     if step != 0:
-      for path in ['extra_info_path', 'w_path']:
+      for path in ['info_file', 'w_file']:
         path_opt = prog.delopt(path)
         if not path_opt:
           return "'%s' not specified" % path
+        prog.addopt('file', os.path.join(os.path.dirname(__file__), path_opt))
         gopts.getstrkey(path, path_opt)
 
     gopts.getintkey('step', -1)
+    gopts.getintkey('last_step', 0)
 
     gopts.save_params()
 
