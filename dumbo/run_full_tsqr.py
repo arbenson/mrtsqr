@@ -40,7 +40,7 @@ parser.add_option('-o', '--output', dest='out', default='',
 parser.add_option('-l', '--local_output', dest='local_out', default='full_out_tmp',
                   help='Base directory for placing local files')
 parser.add_option('-t', '--times_output', dest='times_out', default='times',
-                  help='Base directory for placing local files')
+                  help='file for storing command times')
 parser.add_option('-n', '--ncols', type='int', dest='ncols', default=0,
                   help='number of columns in the matrix')
 parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
@@ -148,8 +148,8 @@ if svd_opt == 2:
                                         '-nummaptasks %d' % sched[2]])
 
 try:
-  f = open(times_out, 'w')
-  f.write('times: ' + str(cm.times))
+  f = open(times_out, 'a')
+  f.write('times: ' + str(cm.times) + '\n')
   f.close
 except:
-  pass
+  print str(cm.times)
