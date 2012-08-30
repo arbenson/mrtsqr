@@ -12,6 +12,7 @@ import sys
 import time
 import struct
 import uuid
+import cPickle as pickle
 
 import numpy
 import numpy.linalg
@@ -64,14 +65,14 @@ class FullTSQRMap1(mrmc.MatrixHandler):
             return
 
         QR = numpy.linalg.qr(numpy.array(self.data))
-        Q = QR[0].tolist()
 
         yield ("R_%s" % str(self.mapper_id), self.mapper_id), QR[1].tolist()
 
-        flat_Q = [entry for row in Q for entry in row]
-        val = (struct.pack('d'*len(flat_Q), *flat_Q), self.keys)
+        flat_Q = [entry for row in QR[0] for entry in row]
+        val1 = pickle.dumps(self.keys)
+        val2 = struct.pack('d'*len(flat_Q), *flat_Q)
+        val = ''.join([str(len(val1)) + '_', val1, val2])
         yield ("Q_%s" % str(self.mapper_id), self.mapper_id), val
-
 
     def __call__(self,data):
         self.collect_data(data)
@@ -175,7 +176,6 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.Q1_data = {}
         self.row_keys = {}
         self.Q2_data = {}
-        self.Q_final_out = {}
         self.ncols = ncols
         self.q2path = q2path
 
@@ -207,10 +207,6 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
     # key2: row identifier
     # value: row of Q1
     def collect(self, key1, key2, value):
-        row = [float(val) for val in value]
-        if self.ncols is None:
-            self.ncols = len(row)
-        
         if key1 not in self.Q1_data:
             self.Q1_data[key1] = []
             assert(key1 not in self.row_keys)
@@ -219,30 +215,34 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.Q1_data[key1].append(row)
         self.row_keys[key1].append(key2)
 
+    def collect2(self, key, keys, value):
+        self.Q1_data[key] = (keys, value)
+
     def close(self):
         # parse the q2 file we were given
         self.parse_q2()
-        
         for key in self.Q1_data:
-            assert(key in self.row_keys)
             assert(key in self.Q2_data)
-            Q1 = numpy.mat(self.Q1_data[key])
-            Q2 = numpy.mat(self.Q2_data[key])
-            Q_out = Q1*Q2
+            keys, Q1 = self.Q1_data[key]
+            Q2 = self.Q2_data[key]
+            Q_out = Q1 * Q2
             for i, row in enumerate(Q_out.getA()):
-                row = row.tolist()
-                yield self.row_keys[key][i], struct.pack('d'*len(row), *row)
+                yield keys[i], struct.pack('d' * len(row), *row)
 
     def __call__(self, data):
         for key, val in data:
-            matrix, keys = val
+            #keys, matrix = val
+            ind = val.find('_')
+            val1_len = int(val[:ind])
+            keys = val[ind + 1:ind + 1 + val1_len]
+            matrix = val[ind +1 +val1_len:]
+            keys = pickle.loads(keys)
             num_entries = len(matrix) / 8
             assert (num_entries % self.ncols == 0)
-            mat = list(struct.unpack('d'*num_entries, matrix))
+            mat = struct.unpack('d' * num_entries, matrix)
             mat = numpy.mat(mat)
             mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
-            for i, value in enumerate(mat.tolist()):
-                self.collect(key, keys[i], value)
+            self.collect2(key, keys, mat)            
 
         for key, val in self.close():
             yield key, val
