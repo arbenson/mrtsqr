@@ -30,22 +30,19 @@ def runner(job):
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
-        if part.startswith('s'):
-            mrmc.add_splay_iteration(job, part)
+        nreducers = int(part)
+        if i == 0:
+            mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
+                                     isfinal=False)
+            isfinal = False
         else:
-            nreducers = int(part)
-            if i == 0:
-                mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
-                                         isfinal=False)
-                isfinal = False
-            else:
-                mapper = mrmc.ID_MAPPER
-                isfinal = True
-            job.additer(mapper=mapper,
-                        reducer=mrmc.SerialTSQR(blocksize=blocksize,
-                                                isreducer=True,
-                                                isfinal=isfinal),
-                        opts = [('numreducetasks', str(nreducers))])    
+            mapper = mrmc.ID_MAPPER
+            isfinal = True
+        job.additer(mapper=mapper,
+                    reducer=mrmc.SerialTSQR(blocksize=blocksize,
+                                            isreducer=True,
+                                            isfinal=isfinal),
+                    opts = [('numreducetasks', str(nreducers))])    
 
 def starter(prog):
     # set the global opts    
