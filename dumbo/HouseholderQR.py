@@ -197,7 +197,6 @@ class HouseholderMap3(mrmc.MatrixHandler):
       value[self.step] = self.alpha
     elif key not in self.picked_set:
       value[self.step] *= self.sigma
-    self.data.append(value)
     self.nrows += 1
 
     # write status updates so Hadoop doesn't complain
@@ -209,15 +208,15 @@ class HouseholderMap3(mrmc.MatrixHandler):
         self.output_vals[i] = 0.0
       self.first_row_done = True
 
+    
     if key in self.picked_set:
       if key == self.last_picked:
-        for i, val in enumerate(row[self.step + 1:]):
+        for i, val in enumerate(value[self.step + 1:]):
           k = self.step + 1 + i
           self.output_vals[k] += val
     else:
-      self.output_keys += range(self.step + 1, self.ncols)
-      mult = row[self.step]
-      for i, val in enumerate(row[self.step + 1:]):
+      mult = value[self.step]
+      for i, val in enumerate(value[self.step + 1:]):
         k = self.step + 1 + i
         self.output_vals[k] += mult * val
 
