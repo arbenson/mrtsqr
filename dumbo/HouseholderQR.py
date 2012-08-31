@@ -186,8 +186,8 @@ class HouseholderMap3(mrmc.MatrixHandler):
     mrmc.MatrixHandler.__init__(self)
     self.data = []
     self.keys = []
-    self.output_keys = []
-    self.output_vals = []
+    #    self.output_keys = 
+    self.output_vals = {}
     self.step = step
     self.picked_set, self.alpha, _, self.sigma = parse_info(info_file)
     self.last_picked = self.picked_set[-1]
@@ -208,20 +208,23 @@ class HouseholderMap3(mrmc.MatrixHandler):
       self.counters['rows processed'] += 50000
 
   def close(self):
+    for i in xrange(self.step + 1, self.ncols):
+      self.output_vals[i] = 0.0
     for i, row in enumerate(self.data):
       key = self.keys[i]
       if key in self.picked_set:
         if key != self.last_picked:
           continue
         else:
-          self.output_keys += range(self.step + 1, self.ncols)
-          for val in row[self.step + 1:]:
-            self.output_vals.append(val)
+          for i, val in enumerate(row[self.step + 1:]):
+            k = self.step + 1 + i
+            self.output_vals[k] += val
       else:
         self.output_keys += range(self.step + 1, self.ncols)
         mult = row[self.step]
-        for val in row[self.step + 1:]:
-          self.output_vals.append(mult * val)
+        for i, val in enumerate(row[self.step + 1:]):
+          k = self.step + 1 + i
+          self.output_vals[k] += mult * val
 
   def __call__(self, data):
     self.collect_data(data)
