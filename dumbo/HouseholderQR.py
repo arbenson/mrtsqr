@@ -62,7 +62,8 @@ class HouseholderMap1(mrmc.MatrixHandler):
     if self.first_step:
       self.picked_set = []
     else:
-      self.picked_set, _, self.tau, _ = parse_info(info_file)
+      self.picked_set, self.alpha, self.tau, self.sigma = parse_info(info_file)
+      self.last_picked = self.picked_set[-1]
       self.w = self.parse_w(w_file)
 
     self.nrows = 0
@@ -92,6 +93,11 @@ class HouseholderMap1(mrmc.MatrixHandler):
 
   def collect(self, key, value):
     new_row = [float(v) for v in value]
+    if not self.first_step:
+      if key == self.last_picked:
+        new_row[self.step - 1] = self.alpha
+      elif key not in self.picked_set:
+        new_row[self.step - 1] *= self.sigma
     
     if not self.first_step:
       last_picked = self.picked_set[-1]
@@ -175,7 +181,6 @@ class HouseholderRed2(dumbo.backends.common.MapRedBase):
     for key, val in self.close():
       yield key, val
 
-@opt("getpath", "yes")
 class HouseholderMap3(mrmc.MatrixHandler):
   def __init__(self, step, info_file):
     mrmc.MatrixHandler.__init__(self)
@@ -222,16 +227,10 @@ class HouseholderMap3(mrmc.MatrixHandler):
     self.collect_data(data)
     self.close()
 
-    # output the matrix A
-    assert(len(self.keys) == len(self.data))
-    for i, key in enumerate(self.keys):
-      row = self.data[i]
-      yield ('A_matrix', key), struct.pack('d' * len(row), *row)
-
     # output the key, value pairs for the reduce
     assert(len(self.output_keys) == len(self.output_vals))
     for i, key in enumerate(self.output_keys):
-      yield ('KV_output', key), self.output_vals[i]
+      yield key, self.output_vals[i]
     
 class Householder4(dumbo.backends.common.MapRedBase):
   def __init__(self, isreducer):

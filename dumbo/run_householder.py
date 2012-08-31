@@ -18,21 +18,22 @@ cm = util.CommandManager(True)
 hadoop = 'icme-hadoop1'
 times_out = 'house_perf_numbers'
 
-#inp = 'HHQR_test_matrix.mseq'
-inp = 'A_4B_4.bseq'
+inp = 'HHQR_test_matrix.mseq'
+#inp = 'A_4B_4.bseq'
 out = 'HH_TESTING'
 
-#num_steps = 3
-num_steps = 4
+num_steps = 3
+#num_steps = 4
 for step in xrange(num_steps):
-  out1 = out + '_1'
+  out1 = out + '_1_' + str(step)
   if step != 0:
-    args = ['-mat ' + out3 + '/A_matrix',
+    args = ['-mat ' + out + '_1_' + str(step - 1) + '/A_matrix',
             '-info_file %s.out' % info_file, '-w_file %s.out' % w_file]
   else:
     args = ['-mat ' + inp]
-  args += ['-output ' + out1, '-step ' + str(step), '-nummaptasks 10',
-           '-libjar feathers.jar']
+  if step > 1:
+    cm.exec_cmd('hadoop fs -rmr %s_1_%d' % (out, step - 2))
+  args += ['-output ' + out1, '-step ' + str(step), '-libjar feathers.jar']
   cm.run_dumbo('HouseholderQR_1.py', hadoop, args)
 
   out2 = out + '_2'
@@ -55,8 +56,7 @@ for step in xrange(num_steps):
   if step != num_steps - 1:
     out4 = out + '_4'
     cm.run_dumbo('HouseholderQR_4.py', hadoop,
-                 ['-mat ' + out3 + '/KV_output', '-output ' + out4,
-                  '-libjar feathers.jar'])
+                 ['-mat ' + out3, '-output ' + out4, '-libjar feathers.jar'])
 
     w_file = 'part_4_info_STEP_' + str(step)
     cm.copy_from_hdfs(out4, w_file)
@@ -64,10 +64,9 @@ for step in xrange(num_steps):
 
 out_final = out + '_FINAL'
 cm.run_dumbo('HouseholderQR_1.py', hadoop,
-             ['-mat ' + out3 + '/A_matrix', '-info_file %s.out' % info_file,
+             ['-mat ' + out1 + '/A_matrix', '-info_file %s.out' % info_file,
               '-w_file %s.out' % w_file, '-output ' + out_final,
-              '-step ' + str(step), '-last_step 1', '-nummaptasks 10',
-              '-libjar feathers.jar'])
+              '-step ' + str(step + 1), '-last_step 1', '-libjar feathers.jar'])
 
 try:
   f = open(times_out, 'a')
