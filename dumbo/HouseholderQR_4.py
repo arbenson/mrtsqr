@@ -19,8 +19,8 @@ import HouseholderQR
 gopts = util.GlobalOptions()
 
 def runner(job):
-    mapper = mrmc.ID_MAPPER
-    reducer = HouseholderQR.HouseholderRed4()
+    mapper = HouseholderQR.Householder4(False)
+    reducer = HouseholderQR.Householder4(True)
     job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks','1')])
 
 def starter(prog):

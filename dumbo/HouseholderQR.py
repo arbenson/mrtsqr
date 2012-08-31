@@ -8,14 +8,13 @@ David F. Gleich
 Copyright (c) 2012
 """
 
-# TODO(arbenson): hadoop status updates
-
 import struct
 import numpy
 import math
 
 import util
 import mrmc
+import sys
 
 import dumbo
 import dumbo.backends.common
@@ -52,7 +51,7 @@ def parse_info(f):
 class HouseholderMap1(mrmc.MatrixHandler):
   def __init__(self, step, last_step, info_file=None, w_file=None, blocksize=500):
     mrmc.MatrixHandler.__init__(self)
-    self.data = []
+    self.data = 0.0
     self.A_data = []
 
     # step of alg: i = 0, 1, ..., n-1
@@ -68,6 +67,8 @@ class HouseholderMap1(mrmc.MatrixHandler):
 
     self.nrows = 0
     self.blocksize = blocksize
+    self.first_key = None
+    self.first_value = None
 
   def parse_w(self, f):
     w = []
@@ -82,7 +83,11 @@ class HouseholderMap1(mrmc.MatrixHandler):
         self.A_data.append((key, value))
     else:
       if key not in self.picked_set:
-        self.data.append((key, value[self.step]))
+        if self.first_key is None:
+          self.first_key = key
+          self.first_value = value[self.step]
+        else:
+          self.data += value[self.step] * value[self.step]
       self.A_data.append((key, value))
 
   def collect(self, key, value):
@@ -100,19 +105,25 @@ class HouseholderMap1(mrmc.MatrixHandler):
           new_row[self.step + i] -= val * self.tau * new_row[self.step - 1]
   
     self.nrows += 1
+    # write status updates so Hadoop doesn't complain
+    if self.nrows % 50000 == 0:
+      self.counters['rows processed'] += 50000
     self.store(key, new_row)
 
-  def flush(self):
+  def flush(self, last_flush=False):
     for pair in self.A_data:
       key, value = pair
+      if not self.last_step:
+        value = struct.pack('d' * len(value), *value)
       yield ('A_matrix', key), value
     self.A_data = []
 
-    if not self.last_step:
-      for pair in self.data:
-        key, value = pair
-        yield ('KV_output', key), value
-      self.data = []
+    if not self.last_step and last_flush:
+      if self.first_value is not None:
+        yield ('KV_output', self.first_key), [self.first_value, '']
+      if self.data != 0.0:
+        key = numpy.random.randint(0, 4000000000)
+        yield ('KV_output', key), [self.data]
 
     self.nrows = 0
 
@@ -122,7 +133,7 @@ class HouseholderMap1(mrmc.MatrixHandler):
       if self.nrows == self.blocksize:
         for key, val in self.flush():
           yield key, val
-    for key, val in self.flush():
+    for key, val in self.flush(last_flush=True):
       yield key, val
 
 class HouseholderRed2(dumbo.backends.common.MapRedBase):
@@ -133,19 +144,19 @@ class HouseholderRed2(dumbo.backends.common.MapRedBase):
       self.picked_set, _, _, _ = parse_info(info_file)
     self.picked = None
     self.alpha = None
-    self.data = []
+    self.norm = 0.0
 
-  def collect(self, key, value):
-    if self.picked is None:
-      self.picked = key
-    if self.alpha is None:
-      self.alpha = value
-    # for now, no blocking scheme here
-    self.data.append(value)
+  def collect(self, key, value, picked_possibility=False):
+    if picked_possibility:
+      if self.picked is None:
+        self.picked = key
+        self.alpha = value
+      self.norm += value * value
+    else:
+      self.norm += value
     
   def close(self):
-    eta = numpy.linalg.norm(self.data, 2)
-    beta = math.sqrt(eta * eta)
+    beta = math.sqrt(self.norm)
     beta = float(-1.0) * math.copysign(beta, self.alpha)
     tau = (beta - self.alpha) / beta
     sigma = float(1.0) / (self.alpha - beta)
@@ -159,7 +170,7 @@ class HouseholderRed2(dumbo.backends.common.MapRedBase):
   def __call__(self, data):
     for key, values in data:
       for value in values:
-        self.collect(key, float(value))
+        self.collect(key, float(value[0]), len(value) == 2)
 
     for key, val in self.close():
       yield key, val
@@ -175,14 +186,21 @@ class HouseholderMap3(mrmc.MatrixHandler):
     self.step = step
     self.picked_set, self.alpha, _, self.sigma = parse_info(info_file)
     self.last_picked = self.picked_set[-1]
+    self.nrows = 0
 
   def collect(self, key, value):
     self.keys.append(key)
+    value = list(value)
     if key == self.last_picked:
       value[self.step] = self.alpha
     elif key not in self.picked_set:
       value[self.step] *= self.sigma
     self.data.append(value)
+    self.nrows += 1
+
+    # write status updates so Hadoop doesn't complain
+    if self.nrows % 50000 == 0:
+      self.counters['rows processed'] += 50000
 
   def close(self):
     for i, row in enumerate(self.data):
@@ -207,17 +225,29 @@ class HouseholderMap3(mrmc.MatrixHandler):
     # output the matrix A
     assert(len(self.keys) == len(self.data))
     for i, key in enumerate(self.keys):
-      yield ('A_matrix', key), self.data[i]
+      row = self.data[i]
+      yield ('A_matrix', key), struct.pack('d' * len(row), *row)
 
     # output the key, value pairs for the reduce
     assert(len(self.output_keys) == len(self.output_vals))
     for i, key in enumerate(self.output_keys):
       yield ('KV_output', key), self.output_vals[i]
     
-class HouseholderRed4(dumbo.backends.common.MapRedBase):
-  def __init__(self):
-    pass
-  def __call__(self, data):
-    for key, values in data:
-      yield key, sum(values)
+class Householder4(dumbo.backends.common.MapRedBase):
+  def __init__(self, isreducer):
+    self.isreducer = isreducer
+    if not self.isreducer:
+      self.data = {}
 
+  def __call__(self, data):
+    if not self.isreducer:
+      for key, value in data:
+        if key not in self.data:
+          self.data[key] = value
+        else:
+          self.data[key] += value
+      for key in self.data:
+        yield key, self.data[key]
+    else:
+      for key, values in data:
+        yield key, sum(values)

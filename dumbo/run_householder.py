@@ -19,9 +19,11 @@ hadoop = 'icme-hadoop1'
 times_out = 'house_perf_numbers'
 
 inp = 'HHQR_test_matrix.mseq'
+#inp = 'A_800M_10.bseq'
 out = 'HH_TESTING'
 
 num_steps = 3
+#num_steps = 10
 for step in xrange(num_steps):
   out1 = out + '_1'
   if step != 0:
