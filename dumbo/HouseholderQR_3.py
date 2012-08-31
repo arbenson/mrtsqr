@@ -27,8 +27,8 @@ def runner(job):
     info_file = gopts.getstrkey('info_file')
    
     mapper = HouseholderQR.HouseholderMap3(step, info_file)
-    reducer = mrmc.ID_REDUCER
-    job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks', '0')])
+    reducer = HouseholderQR.HouseholderRed3()
+    job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks', '1')])
 
 def starter(prog):
     # set the global opts

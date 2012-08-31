@@ -184,17 +184,14 @@ class HouseholderRed2(dumbo.backends.common.MapRedBase):
 class HouseholderMap3(mrmc.MatrixHandler):
   def __init__(self, step, info_file):
     mrmc.MatrixHandler.__init__(self)
-    self.data = []
-    self.keys = []
-    #    self.output_keys = 
     self.output_vals = {}
     self.step = step
     self.picked_set, self.alpha, _, self.sigma = parse_info(info_file)
     self.last_picked = self.picked_set[-1]
     self.nrows = 0
+    self.first_row_done = False
 
   def collect(self, key, value):
-    self.keys.append(key)
     value = list(value)
     if key == self.last_picked:
       value[self.step] = self.alpha
@@ -207,49 +204,36 @@ class HouseholderMap3(mrmc.MatrixHandler):
     if self.nrows % 50000 == 0:
       self.counters['rows processed'] += 50000
 
-  def close(self):
-    for i in xrange(self.step + 1, self.ncols):
-      self.output_vals[i] = 0.0
-    for i, row in enumerate(self.data):
-      key = self.keys[i]
-      if key in self.picked_set:
-        if key != self.last_picked:
-          continue
-        else:
-          for i, val in enumerate(row[self.step + 1:]):
-            k = self.step + 1 + i
-            self.output_vals[k] += val
-      else:
-        self.output_keys += range(self.step + 1, self.ncols)
-        mult = row[self.step]
+    if not self.first_row_done:
+      for i in xrange(self.step + 1, self.ncols):
+        self.output_vals[i] = 0.0
+      self.first_row_done = True
+
+    if key in self.picked_set:
+      if key == self.last_picked:
         for i, val in enumerate(row[self.step + 1:]):
           k = self.step + 1 + i
-          self.output_vals[k] += mult * val
+          self.output_vals[k] += val
+    else:
+      self.output_keys += range(self.step + 1, self.ncols)
+      mult = row[self.step]
+      for i, val in enumerate(row[self.step + 1:]):
+        k = self.step + 1 + i
+        self.output_vals[k] += mult * val
+
+  def close(self):
+    for key in self.output_vals:
+      yield key, self.output_vals[key]
 
   def __call__(self, data):
     self.collect_data(data)
-    self.close()
-
-    # output the key, value pairs for the reduce
-    assert(len(self.output_keys) == len(self.output_vals))
-    for i, key in enumerate(self.output_keys):
-      yield key, self.output_vals[i]
+    for key, val in self.close():
+      yield key, val
     
-class Householder4(dumbo.backends.common.MapRedBase):
-  def __init__(self, isreducer):
-    self.isreducer = isreducer
-    if not self.isreducer:
-      self.data = {}
+class HouseholderRed3(dumbo.backends.common.MapRedBase):
+  def __init__(self):
+    pass
 
   def __call__(self, data):
-    if not self.isreducer:
-      for key, value in data:
-        if key not in self.data:
-          self.data[key] = value
-        else:
-          self.data[key] += value
-      for key in self.data:
-        yield key, self.data[key]
-    else:
-      for key, values in data:
-        yield key, sum(values)
+    for key, values in data:
+      yield key, sum(values)

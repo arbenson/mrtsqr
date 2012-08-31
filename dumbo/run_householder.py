@@ -29,10 +29,11 @@ for step in xrange(num_steps):
   if step != 0:
     args = ['-mat ' + out + '_1_' + str(step - 1) + '/A_matrix',
             '-info_file %s.out' % info_file, '-w_file %s.out' % w_file]
+    if step > 1:
+      cm.exec_cmd('hadoop fs -rmr %s_1_%d' % (out, step - 2))
   else:
     args = ['-mat ' + inp]
-  if step > 1:
-    cm.exec_cmd('hadoop fs -rmr %s_1_%d' % (out, step - 2))
+
   args += ['-output ' + out1, '-step ' + str(step), '-libjar feathers.jar']
   cm.run_dumbo('HouseholderQR_1.py', hadoop, args)
 
@@ -50,17 +51,13 @@ for step in xrange(num_steps):
 
   out3 = out + '_3'
   cm.run_dumbo('HouseholderQR_3.py', hadoop,
-               ['-mat ' + out1 + '/A_matrix', '-output ' + out3, '-step ' + str(step),
-                '-info_file %s.out' % info_file, '-libjar feathers.jar'])
+               ['-mat ' + out1 + '/A_matrix', '-output ' + out3,
+                '-step ' + str(step), '-info_file %s.out' % info_file,
+                '-libjar feathers.jar'])
 
-  if step != num_steps - 1:
-    out4 = out + '_4'
-    cm.run_dumbo('HouseholderQR_4.py', hadoop,
-                 ['-mat ' + out3, '-output ' + out4, '-libjar feathers.jar'])
-
-    w_file = 'part_4_info_STEP_' + str(step)
-    cm.copy_from_hdfs(out4, w_file)
-    cm.parse_seq_file(w_file)
+  w_file = 'part_3_info_STEP_' + str(step)
+  cm.copy_from_hdfs(out3, w_file)
+  cm.parse_seq_file(w_file)
 
 out_final = out + '_FINAL'
 cm.run_dumbo('HouseholderQR_1.py', hadoop,
