@@ -58,6 +58,8 @@ void hadoop_counter(const char* name, int val) {
 extern "C" {
   void dgeqrf_(int *m, int *n, double *a, int *lda, double *tau,
 	       double *work, int *lwork, int *info);
+  void dgeqr_(int *m, int *n, double *a, int *lda, double *tau,
+	      double *work, int *lwork, int *info);
   void dorgqr_(int *m, int *n, int *k, double *a, int *lda, double *tau,
 	       double *work, int *lwork, int *info);
   void dsyrk_(char *uplo, char *trans, int *m, int *k, double *alpha,
@@ -194,11 +196,15 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
     return false;
   }
 
-  memcpy(R, A, minsize * minsize * sizeof(double));
-  for (size_t i = 0; i < minsize; ++i)
-    for (size_t j = 0; j < minsize; ++j)
-      if (i < j)
+  for (size_t i = 0; i < minsize; ++i) {
+    for (size_t j = 0; j < minsize; ++j) {
+      if (i < j) {
         R[i + j * minsize] = 0;
+      } else {
+	R[i + j * minsize] = A[j + i * nrows];
+      }
+    }
+  }
 
   int info = -1;
   int m = urows;
@@ -227,6 +233,7 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
 
 bool lapack_tsmatmul(double *A, size_t nrows_A, size_t ncols_A,
 		     double *B, size_t ncols_B, double *C) {
+  hadoop_message("TSMATMUL\n");
   char transa = 'n';
   char transb = 'n';
   int m = (int) nrows_A;
