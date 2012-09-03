@@ -200,13 +200,10 @@ public:
     size_t num_rows = row_accumulator_.size() / num_cols_;
     hadoop_message("nrows: %d, ncols: %d\n", num_rows, num_cols_);
     // lapack is column major, unfortunately
-    double *matrix_copy = (double *) malloc(num_rows_ * num_cols_ * sizeof(double));
+    double *matrix_copy = (double *) malloc(num_rows * num_cols_ * sizeof(double));
     assert(matrix_copy);
-    for (size_t i = 0; i < num_rows_; ++i) {
-      for (size_t j = 0; j < num_cols_; ++j) {
-        matrix_copy[i + j * num_rows] = row_accumulator_[i * num_cols_ + j];
-      }
-    }
+    row_to_col_major(&row_accumulator_[0], matrix_copy, num_rows, num_cols_);
+    row_accumulator_.clear();
     lapack_full_qr(matrix_copy, R_matrix, num_rows, num_cols_, num_rows);
 
     // output R
@@ -240,14 +237,12 @@ public:
     out_.write_list_start();
 
     hadoop_message("Output: Q");
-    for (size_t i = 0; i < num_rows_; ++i) {
-      for (size_t j = 0; j < num_cols_; ++j) {
-        row_accumulator_[i * num_cols_ + j] = matrix_copy[i + j * num_rows];
-      }
-    }
+
     out_.write_list_start();
-    for (size_t i = 0; i < row_accumulator_.size(); ++i) {
-      out_.write_double(row_accumulator_[i]);
+    for (size_t i = 0; i < num_rows; ++i) {
+      for (size_t j = 0; j < num_cols_; ++j) {
+        out_.write_double(matrix_copy[i + j * num_rows_]);
+      }      
     }
     out_.write_list_end();
 
@@ -308,11 +303,7 @@ public:
 
     double *matrix_copy = (double *) malloc(num_rows_ * num_cols_ * sizeof(double));
     assert(matrix_copy);
-    for (size_t i = 0; i < num_rows_; ++i) {
-      for (size_t j = 0; j < num_cols_; ++j) {
-        matrix_copy[i + j * num_rows] = row_accumulator_[i * num_cols_ + j];
-      }
-    }
+    row_to_col_major(&row_accumulator_[0], matrix_copy, num_rows, num_cols_);
 
     lapack_full_qr(matrix_copy, R_matrix, num_rows, num_cols_, num_rows);
 
@@ -498,17 +489,25 @@ public:
     assert(Q1.size() / num_cols_ == key_output.size());
 
     double *C = (double *) malloc (Q1.size() * sizeof(double));
-    lapack_tsmatmul(&Q1[0], Q1.size() / num_cols_, num_cols_,
-                    &Q2[0], num_cols_, C);
+
+    size_t num_rows = Q1.size() / num_cols_;
+    double *Q1_copy = (double *) malloc (Q1.size() * sizeof(double));
+    row_to_col_major(&Q1[0], Q1_copy, num_rows, num_cols_);
+
+    double *Q2_copy = (double *) malloc (Q2.size() * sizeof(double));
+    row_to_col_major(&Q2[0], Q2_copy, num_cols_, num_cols_);
+
+    lapack_tsmatmul(Q1_copy, num_rows, num_cols_, Q2_copy, num_cols_, C);
 
     size_t ind = 0;
     for (std::list<std::string>::iterator it = key_output.begin();
          it != key_output.end(); ++it) {
       out_.write_string_stl(*it);
       out_.write_list_start();
-      for (size_t i = 0; i < num_cols_; ++i) {
-        out_.write_double(C[ind++]);
+      for (size_t j = 0; j < num_cols_; ++j) {
+        out_.write_double(local_matrix_[ind + j * num_rows]);
       }
+      ++ind;
       out_.write_list_end();
     }
   }
