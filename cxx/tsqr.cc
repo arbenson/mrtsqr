@@ -497,7 +497,7 @@ public:
     std::list<std::string>& key_output(key_it->second);
     assert(Q1.size() / num_cols_ == key_output.size());
 
-    double *C= (double *) malloc (Q1.size() * sizeof(double));
+    double *C = (double *) malloc (Q1.size() * sizeof(double));
     lapack_tsmatmul(&Q1[0], Q1.size() / num_cols_, num_cols_,
                     &Q2[0], num_cols_, C);
 
