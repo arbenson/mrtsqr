@@ -13,8 +13,8 @@
 #include "sparfun_util.h"
 
 
-/** Write a message to stderr
- */
+
+// Write a message to stderr
 void hadoop_message(const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -22,9 +22,7 @@ void hadoop_message(const char* format, ...) {
   va_end (args);
 }
 
-/** Write a status message to hadoop.
- *
- */
+// Write a status message to hadoop.
 void hadoop_status(const char* format, ...) {
   va_list args;
   va_start (args, format);
@@ -42,6 +40,7 @@ void hadoop_status(const char* format, ...) {
   va_end (args);
 }
 
+// Write an error message to hadoop and then exit
 void hadoop_error(const char* format, ...) {
   va_list args;
   va_start (args, format);  
@@ -53,6 +52,13 @@ void hadoop_error(const char* format, ...) {
 
 void hadoop_counter(const char* name, int val) {
   fprintf(stderr, "reporter:counter:Program,%s,%i\n", name, val);
+}
+
+// Copy A (row-major) to B (col-major)
+void row_to_col_major(double *A, double *B, size_t num_rows, size_t num_cols) {
+  for (size_t i = 0; i < num_rows; ++i)
+    for (size_t j = 0; j < num_cols; ++j)
+      B[i + j * num_rows] = A[i * num_cols + j];
 }
 
 extern "C" {
@@ -76,8 +82,7 @@ extern "C" {
  * @param ncols the number of columns of A allocated
  * @param urows the number of rows of A used.
  */
-bool lapack_daxpy(int size, double *x, double *y)
-{
+bool lapack_daxpy(int size, double *x, double *y) {
   int incx = 1;
   int incy = 1;
   int n = size;
@@ -125,7 +130,8 @@ bool lapack_syrk(double* A, double* C, size_t nrows, size_t ncols,
   return true;
 }
 
-bool _lapack_qr(double *A, size_t nrows, size_t ncols, size_t urows, std::vector<double>& tau) {
+bool _lapack_qr(double *A, size_t nrows, size_t ncols, size_t urows,
+                std::vector<double>& tau) {
   int info = -1;
   int n = ncols;
   int m = urows;
