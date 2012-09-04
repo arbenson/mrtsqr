@@ -13,13 +13,6 @@ ifneq (, $(filter %nersc,$(NERSC)))
   LDFLAGS=$(MKL) -lpthread
 endif
 
-# note: NERSC machines need mkl and gcc modules
-NERSC := $(shell uname -r)
-ifneq (, $(filter %nersc,$(NERSC)))
-  CXX=g++
-  LDFLAGS=$(MKL) -lpthread
-endif
-
 all: tsqr word_count colsums tests
 
 tests: dump_typedbytes_info write_typedbytes_test
