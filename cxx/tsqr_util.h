@@ -61,6 +61,13 @@ void row_to_col_major(double *A, double *B, size_t num_rows, size_t num_cols) {
       B[i + j * num_rows] = A[i * num_cols + j];
 }
 
+// Copy A (col-major) to B (row-major)
+void col_to_row_major(double *A, double *B, size_t num_rows, size_t num_cols) {
+  for (size_t i = 0; i < num_rows; ++i)
+    for (size_t j = 0; j < num_cols; ++j)
+      B[i * num_cols + j] = A[i + j * num_rows];
+}
+
 extern "C" {
   void dgeqrf_(int *m, int *n, double *a, int *lda, double *tau,
 	       double *work, int *lwork, int *info);
@@ -195,7 +202,7 @@ bool lapack_qr(double* A, size_t nrows, size_t ncols, size_t urows) {
  * the size
  */
 bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t urows) {
-  hadoop_message("LAPACK FULL!\n");
+  hadoop_message("LAPACK FULL\n");
   size_t minsize = std::min(urows, ncols);
   std::vector<double> tau(minsize);
   if (!_lapack_qr(A, nrows, ncols, urows, tau)) {
@@ -233,7 +240,7 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
     return false;
   }
 
-  hadoop_message("QR SUCCESS!\n");
+  hadoop_message("LAPACK FULL success!\n");
   return true;
 }
 
@@ -255,6 +262,7 @@ bool lapack_tsmatmul(double *A, size_t nrows_A, size_t ncols_A,
   dgemm_(&transa, &transb, &m, &n, &k, &alpha, A,
          &lda, B, &ldb, &beta, C, &ldc);
 
+  hadoop_message("TSMATMUL success!\n");
   return true;
 }
 
