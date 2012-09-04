@@ -132,6 +132,7 @@ hadoop_opts['output'] = [out2]
 hadoop_opts['mapper'] =  ['org.apache.hadoop.mapred.lib.IdentityMapper']
 hadoop_opts['reducer'] =  ["'./tsqr_wrapper.sh map 2'"]
 hadoop_opts['numReduceTasks'] = ['1']
+hadoop_opts['jobconf'] += ['mapred.map.tasks=%d' % sched[0]]
 run_step(hadoop_opts)
 
 # Q2 file needs parsing before being distributed to phase 3
@@ -154,11 +155,12 @@ hadoop_opts['mapper'] =  ["'./tsqr_wrapper.sh map 3'"]
 hadoop_opts['reducer'] = ['org.apache.hadoop.mapred.lib.IdentityReducer']
 hadoop_opts['outputformat'] = ['org.apache.hadoop.mapred.SequenceFileOutputFormat']
 hadoop_opts['numReduceTasks'] = ['0']
+hadoop_opts['jobconf'] += ['mapred.map.tasks=%d' % sched[1]]
 run_step(hadoop_opts)
 
 try:
-  f = open(times_out, 'w')
-  f.write('times: ' + str(cm.times))
+  f = open(times_out, 'a')
+  f.write('times: ' + str(cm.times) + '\n')
   f.close
 except:
   pass
