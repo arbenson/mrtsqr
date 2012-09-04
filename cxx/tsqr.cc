@@ -41,11 +41,14 @@ public:
   void read_full_row(std::vector<double>& row) {
     row.clear();
     TypedBytesType code = in_.next_type();
-    if (code == TypedBytesVector) {
-      typedbytes_length len = in_.read_typedbytes_sequence_length();
+    typedbytes_length len;
+    TypedBytesType nexttype;
+    switch (code) {
+    case TypedBytesVector:
+      len = in_.read_typedbytes_sequence_length();
       row.reserve((size_t)len);
       for (size_t i = 0; i < (size_t) len; ++i) {
-        TypedBytesType nexttype = in_.next_type();
+        nexttype = in_.next_type();
         if (in_.can_be_double(nexttype)) {
           row.push_back(in_.convert_double());
         } else {
@@ -53,9 +56,15 @@ public:
                        num_total_rows_, row.size());
         }
       }
-    } else if (code == TypedBytesList) {
+      break;
+    case TypedBytesByteSequence:
+      len = in_.read_byte_sequence_length();
+      row.resize((size_t) len / sizeof(double));
+      in_.read_byte_sequence((unsigned char *) &row[0], len);
+      break;
+    case TypedBytesList:
       hadoop_message("TypedBytesList!\n");
-      TypedBytesType nexttype = in_.next_type();
+      nexttype = in_.next_type();
       while (nexttype != TypedBytesListEnd) {
         if (in_.can_be_double(nexttype)) {
           row.push_back(in_.convert_double());
@@ -66,12 +75,14 @@ public:
         }
         nexttype = in_.next_type();
       }
-    } else if (code == TypedBytesString) {
-      typedbytes_length len = in_.read_string_length();
+      break;
+    case TypedBytesString:
+      len = in_.read_string_length();
       row.resize(len / 8);
       in_.read_string_data((unsigned char *) &row[0], (size_t) len);
-    } else {
-      hadoop_error("row %zi is a not a list, vector, or string (code is: %d)\n",
+      break;
+    default:
+      hadoop_error("row %zi is an unknown type (code is: %d)\n",
                    num_total_rows_, code);
     }
   }
@@ -216,13 +227,11 @@ public:
     out_.write_list_end();
 
     hadoop_message("Output: R");
-    out_.write_list_start();
-    for (size_t i = 0; i < num_cols_; ++i) {
-      for (size_t j = 0; j < num_cols_; ++j) {
-        out_.write_double(R_matrix[j + i * num_cols_]);
-      }
-    }
-    out_.write_list_end();
+    out_.write_byte_sequence((unsigned char *) R_matrix,
+                             num_cols_ * num_cols_ * sizeof(double));
+
+
+    hadoop_message("Output: Q");
 
     // output (Q, keys)
     out_.write_list_start();
@@ -236,26 +245,37 @@ public:
     // start value write
     out_.write_list_start();
 
-    hadoop_message("Output: Q");
-
-    out_.write_list_start();
-    for (size_t i = 0; i < num_rows; ++i) {
-      for (size_t j = 0; j < num_cols_; ++j) {
-        out_.write_double(matrix_copy[i + j * num_rows_]);
-      }      
-    }
-    out_.write_list_end();
+    out_.write_byte_sequence((unsigned char *) matrix_copy,
+                             num_rows * num_cols_ * sizeof(double));
 
     hadoop_message("Output: keys");
-    out_.write_list_start();
+    size_t total_key_size = 0;
+    for (std::list<typedbytes_opaque>::iterator it = keys_.begin();
+         it != keys_.end(); ++it) {
+      total_key_size += it->size();
+    }
+    // We also need to account for approximately the size to store the
+    // lengths.  We are basically trying to accomplish a Python pickling
+    // of this data.
+    total_key_size += 4 * keys_.size();
+    typedbytes_opaque key_holder;
+    key_holder.reserve(total_key_size);
+    
     for (std::list<typedbytes_opaque>::iterator it = keys_.begin();
          it != keys_.end(); ++it) {
       typedbytes_opaque key = *it;
-      // We write this out as a string
-      std::string str_key((const char *) &key[0], key.size());
-      out_.write_string_stl(str_key);
+      char buf[10];
+      snprintf(buf, sizeof(buf), "%zu", key.size());
+      for (size_t i = 0; i < strlen(buf); ++i) {
+        key_holder.push_back(buf[i]);
+      }
+      key_holder.push_back('\0');
+      for (size_t i = 0; i < key.size(); ++i) {
+        key_holder.push_back(key[i]);
+      }
     }
-    out_.write_list_end();
+
+    out_.write_byte_sequence(&key_holder[0], key_holder.size());
 
     // end value write
     out_.write_list_end();
@@ -303,15 +323,8 @@ public:
 
     double *matrix_copy = (double *) malloc(num_rows_ * num_cols_ * sizeof(double));
     assert(matrix_copy);
-    row_to_col_major(&row_accumulator_[0], matrix_copy, num_rows, num_cols_);
 
-    lapack_full_qr(matrix_copy, R_matrix, num_rows, num_cols_, num_rows);
-
-    for (size_t i = 0; i < num_rows_; ++i) {
-      for (size_t j = 0; j < num_cols_; ++j) {
-        row_accumulator_[i * num_cols_ + j] = matrix_copy[i + j * num_rows];
-      }
-    }
+    lapack_full_qr(&row_accumulator_[0], R_matrix, num_rows, num_cols_, num_rows);
 
     // output R
     for (size_t i = 0; i < num_cols_; ++i) {
@@ -370,49 +383,60 @@ public:
 
   bool read_key_val_pair(typedbytes_opaque& key,
                          std::vector<double>& value,
-                         std::list<std::string>& strings) {
+                         std::list<typedbytes_opaque>& key_list) {
     if (!in_.read_opaque(key)) {
       return false;
     }
     TypedBytesType code = in_.next_type();
-    if (code != TypedBytesList) {
+    if (code != TypedBytesList)
       hadoop_error("expected a value list!\n");
-    }
-    read_full_row(value); 
+
+    read_full_row(value);
     code = in_.next_type();
-    if (code != TypedBytesList) {
-      hadoop_error("expected a key list!\n");
+    if (code != TypedBytesByteSequence)
+      hadoop_error("expected key sequence!\n");
+
+    
+    typedbytes_length  len = in_.read_byte_sequence_length();
+    std::vector<unsigned char> keys;
+    keys.resize((size_t) len);
+    in_.read_byte_sequence((unsigned char *) &keys[0], len);
+    
+    unsigned char *prev = &keys[0];
+    unsigned char *next = &keys[0];
+    size_t chars_skipped = 0;
+    while (chars_skipped < (size_t) len) {
+      while (*next++ != '\0') ;
+      chars_skipped += next - prev;
+      size_t next_len = (size_t) atoi((const char *)prev);
+      typedbytes_opaque curr_key;
+      curr_key.resize(next_len);
+      memcpy(&curr_key[0], next, next_len);
+      key_list.push_back(curr_key);
+      chars_skipped += next_len;
+      next += next_len;
+      prev = next;
     }
-    TypedBytesType nexttype = in_.next_type();
-    while (nexttype != TypedBytesListEnd) {
-      if (nexttype != TypedBytesString) {
-        hadoop_error("expected a string key!\n");
-      }
-      typedbytes_length len = in_.read_string_length();
-      std::string str(len, 0);
-      in_.read_string_data((unsigned char *) &str[0], (size_t) len);
-      strings.push_back(str);
-      nexttype = in_.next_type();
-    }
-    nexttype = in_.next_type();
-    if (nexttype != TypedBytesListEnd) {
-      hadoop_error("expected the end of the value list!\n");
-    }
+    
+    code = in_.next_type();
+    if (code != TypedBytesListEnd)
+      hadoop_error("expected the end of the key list!\n");
+
     return true;
   }
 
   void collect(typedbytes_opaque& key, std::vector<double>& value,
-               std::list<std::string>& strings) {
+               std::list<typedbytes_opaque>& key_list) {
     std::string str_key((const char *) &key[0], key.size());
     Q_matrices_[str_key] = value;
-    keys_[str_key] = strings;
+    keys_[str_key] = key_list;
   }
 
   virtual void mapper() {
     while (!feof(in_.get_stream())) {
       typedbytes_opaque key;
       std::vector<double> row;
-      std::list<std::string> string_keys;
+      std::list<typedbytes_opaque> string_keys;
       if (!read_key_val_pair(key, row, string_keys)) {
         if (feof(in_.get_stream())) {
           break;
@@ -432,7 +456,6 @@ public:
     char b[32768];
     while (fgets(b, sizeof(b), f)) {
       char *buf = b;
-      fprintf(stderr, "%s", buf);
       size_t i;
       while (*buf != '\0' && *buf++ != '(') ;
       if (*buf == '\0')
@@ -470,6 +493,7 @@ public:
         }
       }
       assert(value.size() == num_cols_ * num_cols_);
+      hadoop_message("handling matmul!\n");      
       handle_matmul(key, value);
     }
   }
@@ -482,33 +506,34 @@ public:
     
     std::vector<double>& Q1(Q_it->second);
 
-    std::map<std::string, std::list<std::string>>::iterator key_it =
+    std::map<std::string, std::list<typedbytes_opaque>>::iterator key_it =
       keys_.find(key);
     assert(key_it != keys_.end());
-    std::list<std::string>& key_output(key_it->second);
+    std::list<typedbytes_opaque>& key_output(key_it->second);
     assert(Q1.size() / num_cols_ == key_output.size());
 
-    double *C = (double *) malloc (Q1.size() * sizeof(double));
-
     size_t num_rows = Q1.size() / num_cols_;
-    double *Q1_copy = (double *) malloc (Q1.size() * sizeof(double));
-    row_to_col_major(&Q1[0], Q1_copy, num_rows, num_cols_);
 
     double *Q2_copy = (double *) malloc (Q2.size() * sizeof(double));
+    assert(Q2_copy);
     row_to_col_major(&Q2[0], Q2_copy, num_cols_, num_cols_);
+    Q2.clear();
 
-    lapack_tsmatmul(Q1_copy, num_rows, num_cols_, Q2_copy, num_cols_, C);
+    double *C = (double *) malloc (Q1.size() * sizeof(double));
+    assert(C);
+    lapack_tsmatmul(&Q1[0], num_rows, num_cols_, Q2_copy, num_cols_, C);
+    free(Q2_copy);
 
-    size_t ind = 0;
-    for (std::list<std::string>::iterator it = key_output.begin();
-         it != key_output.end(); ++it) {
-      out_.write_string_stl(*it);
-      out_.write_list_start();
-      for (size_t j = 0; j < num_cols_; ++j) {
-        out_.write_double(local_matrix_[ind + j * num_rows]);
-      }
-      ++ind;
-      out_.write_list_end();
+    col_to_row_major(C, &Q1[0], num_rows, num_cols_);
+    free(C);
+
+    double *out = &Q1[0];
+    while (!key_output.empty()) {
+      typedbytes_opaque curr_key = key_output.front();
+      out_.write_byte_sequence(&curr_key[0], curr_key.size());
+      out_.write_byte_sequence((unsigned char *) out, num_cols_ * sizeof(double));
+      out += num_cols_;
+      key_output.pop_front();
     }
   }
 
@@ -516,7 +541,7 @@ public:
 
 private:
   std::map<std::string, std::vector<double>> Q_matrices_;
-  std::map<std::string, std::list<std::string>> keys_;
+  std::map<std::string, std::list<typedbytes_opaque>> keys_;
   std::string Q2_path_;
 };
 
