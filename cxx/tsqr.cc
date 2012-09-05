@@ -260,7 +260,8 @@ public:
     total_key_size += 4 * keys_.size();
     typedbytes_opaque key_holder;
     key_holder.reserve(total_key_size);
-    
+
+    assert(keys_.size() == num_rows);
     for (std::list<typedbytes_opaque>::iterator it = keys_.begin();
          it != keys_.end(); ++it) {
       typedbytes_opaque key = *it;
@@ -453,7 +454,7 @@ public:
   void output() {
     FILE *f = fopen(Q2_path_.c_str(), "r");
     assert(f);
-    char b[32768];
+    char b[262144];
     while (fgets(b, sizeof(b), f)) {
       char *buf = b;
       size_t i;
@@ -493,7 +494,6 @@ public:
         }
       }
       assert(value.size() == num_cols_ * num_cols_);
-      hadoop_message("handling matmul!\n");      
       handle_matmul(key, value);
     }
   }
@@ -510,6 +510,8 @@ public:
       keys_.find(key);
     assert(key_it != keys_.end());
     std::list<typedbytes_opaque>& key_output(key_it->second);
+    if (Q1.size() / num_cols_ != key_output.size())
+      hadoop_message("num rows: %d, keys: %d\n", Q1.size() / num_cols_, key_output.size());
     assert(Q1.size() / num_cols_ == key_output.size());
 
     size_t num_rows = Q1.size() / num_cols_;
@@ -560,6 +562,9 @@ int main(int argc, char** argv) {
     stage = atoi(argv[2]);
   }
   size_t ncols = 10;
+  if (argc > 3) {
+    ncols = atoi(argv[3]);
+  }
   if (stage == 1) {
     FullTSQRMap1 map(in, out, 5, 1);
     map.mapper();
