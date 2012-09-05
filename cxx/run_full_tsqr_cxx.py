@@ -130,7 +130,7 @@ out2 = out + '_2'
 hadoop_opts['input'] = [out1 + '/R_*']
 hadoop_opts['output'] = [out2]
 hadoop_opts['mapper'] =  ['org.apache.hadoop.mapred.lib.IdentityMapper']
-hadoop_opts['reducer'] =  ["'./tsqr_wrapper.sh map 2'"]
+hadoop_opts['reducer'] =  ["'./tsqr_wrapper.sh map 2 %d'" % ncols]
 hadoop_opts['numReduceTasks'] = ['1']
 hadoop_opts['jobconf'] += ['mapred.map.tasks=%d' % sched[0]]
 run_step(hadoop_opts)
@@ -151,7 +151,7 @@ out3 = out + '_3'
 hadoop_opts['input'] = [out1 + '/Q_*']
 hadoop_opts['output'] = [out3]
 hadoop_opts['file'] += [Q2_file + '.out']
-hadoop_opts['mapper'] =  ["'./tsqr_wrapper.sh map 3'"]
+hadoop_opts['mapper'] =  ["'./tsqr_wrapper.sh map 3 %d'" % ncols]
 hadoop_opts['reducer'] = ['org.apache.hadoop.mapred.lib.IdentityReducer']
 hadoop_opts['outputformat'] = ['org.apache.hadoop.mapred.SequenceFileOutputFormat']
 hadoop_opts['numReduceTasks'] = ['0']
