@@ -114,7 +114,7 @@ hadoop_opts = {'jobconf': ['mapreduce.job.name=tsqr_cxx',
                            'stream.reduce.output=typedbytes',],
                'inputformat': ['org.apache.hadoop.streaming.AutoInputFormat'],
                'outputformat': ['fm.last.feathers.output.MultipleSequenceFiles'],
-               'file': ['tsqr', 'tsqr_wrapper.sh', 'libblas.so.3'],
+               'file': ['tsqr', 'tsqr_wrapper.sh'],
                'input': [in1],
                'mapper': ["'./tsqr_wrapper.sh map 1'"],
                'reducer': ['org.apache.hadoop.mapred.lib.IdentityReducer'],
@@ -124,6 +124,8 @@ hadoop_opts = {'jobconf': ['mapreduce.job.name=tsqr_cxx',
 # Now run the MapReduce jobs
 out1 = out + '_1'
 hadoop_opts['output'] = [out1]
+jobconf = [x for x in hadoop_opts['jobconf']]
+hadoop_opts['jobconf'] = jobconf + ['mapred.map.tasks=%d' % sched[0]]
 run_step(hadoop_opts)
 
 out2 = out + '_2'
@@ -132,7 +134,7 @@ hadoop_opts['output'] = [out2]
 hadoop_opts['mapper'] =  ['org.apache.hadoop.mapred.lib.IdentityMapper']
 hadoop_opts['reducer'] =  ["'./tsqr_wrapper.sh map 2 %d'" % ncols]
 hadoop_opts['numReduceTasks'] = ['1']
-hadoop_opts['jobconf'] += ['mapred.map.tasks=%d' % sched[0]]
+hadoop_opts['jobconf'] = jobconf + ['mapred.map.tasks=%d' % sched[1]]
 run_step(hadoop_opts)
 
 # Q2 file needs parsing before being distributed to phase 3
@@ -155,7 +157,7 @@ hadoop_opts['mapper'] =  ["'./tsqr_wrapper.sh map 3 %d'" % ncols]
 hadoop_opts['reducer'] = ['org.apache.hadoop.mapred.lib.IdentityReducer']
 hadoop_opts['outputformat'] = ['org.apache.hadoop.mapred.SequenceFileOutputFormat']
 hadoop_opts['numReduceTasks'] = ['0']
-hadoop_opts['jobconf'] += ['mapred.map.tasks=%d' % sched[1]]
+hadoop_opts['jobconf'] = jobconf + ['mapred.map.tasks=%d' % sched[2]]
 run_step(hadoop_opts)
 
 try:
