@@ -4,7 +4,7 @@ CXX=g++
 
 CC=$(CXX)
 CXXFLAGS=-Wall -O3  -std=c++0x
-LDFLAGS= -lblas -llapack
+LDFLAGS=-L./atlas -llapack -lf77blas -lcblas -latlas 
 
 # note: NERSC machines need mkl and gcc modules
 NERSC := $(shell uname -r)
