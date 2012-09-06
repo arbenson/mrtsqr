@@ -322,9 +322,6 @@ public:
     size_t num_rows = row_accumulator_.size() / num_cols_;
     hadoop_message("nrows: %d, ncols: %d\n", num_rows, num_cols_);
 
-    double *matrix_copy = (double *) malloc(num_rows_ * num_cols_ * sizeof(double));
-    assert(matrix_copy);
-
     lapack_full_qr(&row_accumulator_[0], R_matrix, num_rows, num_cols_, num_rows);
 
     // output R
@@ -467,6 +464,11 @@ public:
         hadoop_error("could not find key while parsing matrix\n");
 
       std::string key((const char *) buf, i);
+      std::map<std::string, std::vector<double>>::iterator Q_it =
+	  Q_matrices_.find(key);
+      if (Q_it == Q_matrices_.end())
+        continue;
+
       buf += i + 1;
       while (*buf != '\0' && *buf++ != '[') ;
       if (*buf == '\0')
@@ -501,8 +503,7 @@ public:
   void handle_matmul(std::string& key, std::vector<double>& Q2) {
     std::map<std::string, std::vector<double>>::iterator Q_it =
       Q_matrices_.find(key);
-    if (Q_it == Q_matrices_.end())
-      return;
+    assert(Q_it != Q_matrices_.end());
     
     std::vector<double>& Q1(Q_it->second);
 
@@ -516,15 +517,9 @@ public:
 
     size_t num_rows = Q1.size() / num_cols_;
 
-    double *Q2_copy = (double *) malloc (Q2.size() * sizeof(double));
-    assert(Q2_copy);
-    row_to_col_major(&Q2[0], Q2_copy, num_cols_, num_cols_);
-    Q2.clear();
-
     double *C = (double *) malloc (Q1.size() * sizeof(double));
     assert(C);
-    lapack_tsmatmul(&Q1[0], num_rows, num_cols_, Q2_copy, num_cols_, C);
-    free(Q2_copy);
+    lapack_tsmatmul(&Q1[0], num_rows, num_cols_, &Q2[0], num_cols_, C);
 
     col_to_row_major(C, &Q1[0], num_rows, num_cols_);
     free(C);
