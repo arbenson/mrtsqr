@@ -1,8 +1,9 @@
+#include <assert.h>
+#include <vector>
+
 #include "mrmc.h"
 #include "sparfun_util.h"
 #include "tsqr_util.h"
-
-#include <vector>
 
 int Cholesky::read_key() {
   TypedBytesType type = in_.next_type();
