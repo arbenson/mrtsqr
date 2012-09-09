@@ -1,5 +1,6 @@
 # Makefile designed to run on the icme-hadoop1 cluster at
 # ICME, Stanford University
+
 CXX=g++
 ATLAS=./atlas
 CC=$(CXX)
@@ -13,28 +14,26 @@ ifneq (, $(filter %nersc,$(NERSC)))
   LDFLAGS=$(MKL) -lpthread
 endif
 
-SRC=tsqr.cc direct_tsqr.cc sparfun_util.cc typedbytes.cc tsqr_util.cc MatrixHandler.cc
-TSQR_OBJS=tsqr.o direct_tsqr.o sparfun_util.o typedbytes.o tsqr_util.o MatrixHandler.o
+BASE=MatrixHandler sparfun_util typedbytes tsqr_util
+BASE_SRC=$(addsuffix .cc, $(BASE))
+
+TSQR_ALL=main direct_tsqr SerialTSQR CholeskyQR $(BASE)
+
+OBJ_OUT=tsqr-objs
+
+SRC=$(addsuffix .cc, $(TSQR_ALL))
+OBJS=$(addsuffix .o, $(TSQR_ALL))
 
 all: tsqr
 
-tsqr: $(TSQR_OBJS) $(SRC)
-	$(CC) $(CXXFLAS) $(LDFLAGS) -o tsqr $(TSQR_OBJS)
+tsqr: $(OBJS) $(SRC)
+	$(CC) $(CXXFLAS) $(LDFLAGS) -o tsqr $(OBJS)
 
-tsqr.o: tsqr.cc sparfun_util.cc typedbytes.cc MatrixHandler.cc direct_tsqr.cc
-	$(CC) $(CXXFLAGS) $(LDFLAGS) -c tsqr.cc -o tsqr.o
-
-sparfun_util.o: sparfun_util.cc
-	$(CC) $(CXXFLAGS) -c sparfun_util.cc -o sparfun_util.o
-
-direct_tsqr.o: direct_tsqr.cc typedbytes.cc typedbytes.h tsqr_util.h
-	$(CC) $(CXXFLAGS) $(LDFLAGS) -c direct_tsqr.cc -o direct_tsqr.o
-
-typedbytes.o: typedbytes.cc typedbytes.h
-	$(CC) $(CXXFLAGS) $(LDFLAGS) -c typedbytes.cc -o typedbytes.o
-
-MatrixHandler.o: MatrixHandler.cc
-	$(CC) $(CXXFLAGS) $(LDFLAGS) -c MatrixHandler.cc -o MatrixHandler.o
+main.o: $(SRC)
+SerialTSQR.o: SerialTSQR.cc $(BASE_SRC)
+CholeskyQR.o: CholeskyQR.cc $(BASE_SRC)
+direct_tsqr.o: direct_tsqr.cc $(BASE_SRC)
+MatrixHandler.o: $(BASE_SRC)
 
 clean:
 	rm -rf *.o dump_typedbytes_info tsqr
