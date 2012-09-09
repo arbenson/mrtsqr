@@ -62,7 +62,7 @@ public:
     : MatrixHandler(in, out, blocksize, rows_per_record) {}
   virtual ~SerialTSQR() {}
 
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value);
+  void collect(typedbytes_opaque& key, std::vector<double>& value);
   // compress the local QR factorization
   void compress();
   // Output the matrix with random keys for the rows.
@@ -77,7 +77,7 @@ public:
 
   int read_key();
   void first_row();
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+  void collect(typedbytes_opaque& key, std::vector<double>& value) {}
     
   // read in a row and add it to the local matrix
   void add_row(const std::vector<double>& row, int row_index);
@@ -103,7 +103,7 @@ public:
   void compress();
   // Output the matrix with key equal to row number
   void output();
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+  void collect(typedbytes_opaque& key, std::vector<double>& value) {}
   
 private:
   double *local_AtA_;
@@ -119,11 +119,12 @@ public:
 
   // Handle the first input row.
   // The first row of the input is special, and so we handle it differently.
-  virtual void first_row();
+  void first_row();
   // read in a row and add it to the local matrix
-  virtual void add_row(const std::vector<double>& row, int row_index);
-  virtual void collect(typedbytes_opaque& key, std::vector<double>& value);
-  virtual void reducer() { mapper(); }  
+  void add_row(const std::vector<double>& row, int row_index);
+  void collect(typedbytes_opaque& key, std::vector<double>& value);
+  void reducer() { mapper(); }  
+  void output();
   
 private:
   std::vector<double*> rows_;
