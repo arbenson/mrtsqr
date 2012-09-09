@@ -1,10 +1,10 @@
 #include "tsqr_util.h"
 
-#include "typedbytes.h"
-#include "sparfun_util.h"
-
-#include <vector>
 #include <algorithm>
+#include <vector>
+
+#include "sparfun_util.h"
+#include "typedbytes.h"
 
 // Write a message to stderr
 void hadoop_message(const char* format, ...) {
