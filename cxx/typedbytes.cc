@@ -130,7 +130,7 @@ bool TypedBytesInFile::skip_next() {
 TypedBytesType TypedBytesInFile::next_type() {
   unsigned char code = next_type_code();
   if (code <= 10 || code == 255) {
-    return (TypedBytesType)code;
+    return (TypedBytesType) code;
   } else if (IS_TYPEDBYTES_BYTE_SEQUENCE(code)) {
     return TypedBytesByteSequence;
   } else if (code == TypedBytesTypeError) {
@@ -158,10 +158,8 @@ unsigned char TypedBytesInFile::next_type_code() {
     
 size_t TypedBytesInFile::_read_bytes(void *ptr, size_t nbytes, size_t nelem) {
   size_t nread = fread(ptr, nbytes, nelem, stream_);
-  if (nread != nelem) {
-    // TODO set error flag and determine more intelligent action.
-    assert(0);
-  }
+  // TODO set error flag and determine more intelligent action.
+  assert(nread == nelem);
   // reset last_length_
   last_length_ = -1;
   return nread;
@@ -208,9 +206,9 @@ bool TypedBytesInFile::read_bool() {
   typedbytes_check_type_code(TypedBytesBoolean);
   signed char rval = 0;
   _read_bytes(&rval, sizeof(signed char), 1);
-  return (bool)rval;
+  return (bool) rval;
 }
-    
+
 float TypedBytesInFile::read_float() {
   typedbytes_check_type_code(TypedBytesFloat);
   int32_t val = 0;
@@ -232,31 +230,31 @@ double TypedBytesInFile::read_double() {
 }
     
 double TypedBytesInFile::convert_double() {
-  if (last_code_ == TypedBytesFloat) {
+  switch (last_code_) {
+  case TypedBytesFloat:
     return (double) read_float();
-  } else if (last_code_ == TypedBytesDouble) {
-    return (double) read_double();
-  } else {
+  case TypedBytesDouble:
+    return read_double();
+  default:
     return (double) convert_long();
   }
 }
     
 typedbytes_long TypedBytesInFile::convert_long() {
-  if (last_code_ == TypedBytesLong) {
-    return (long) read_long();
-  } else {
-    return (long) convert_int();
-  }
+  if (last_code_ == TypedBytesLong)
+    return read_long();
+  return (long) convert_int();
 }
     
 int TypedBytesInFile::convert_int() {
-  if (last_code_ == TypedBytesByte) {
+  switch (last_code_) {
+  case TypedBytesByte:
     return (int) read_byte();
-  } else if (last_code_ == TypedBytesBoolean) {
+  case TypedBytesBoolean:
     return (int) read_bool();
-  } else if (last_code_ == TypedBytesInteger) {
-    return (int) read_int();
-  } else {
+  case TypedBytesInteger:
+    return read_int();
+  default:
     assert(last_code_ == TypedBytesTypeError);
     return 0;
   }
