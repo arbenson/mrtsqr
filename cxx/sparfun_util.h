@@ -3,9 +3,8 @@
  * Utility functions for the sparse matrix function library
  */
 
-#ifndef SPARFUN_SPARFUN_UTIL_H
-#define SPARFUN_SPARFUN_UTIL_H
-
+#ifndef MRTSQR_CXX_SPARFUN_UTIL_H
+#define MRTSQR_CXX_SPARFUN_UTIL_H
 
 /*
  * David F. Gleich
@@ -29,12 +28,11 @@ int sf_randint(int min, int max);
 unsigned char sf_randbyte(void);
 unsigned int sf_rand_uint(void);
 
-/** A small wall-clock timer class.
- *
- * Suggested usage: wall_timer t; 
- * my_computation_setup();
- * t.start(); my_computation(); dt = t.dt();
- */
+// A small wall-clock timer class.
+// Suggested usage:
+// wall_timer t; 
+// my_computation_setup();
+// t.start(); my_computation(); dt = t.dt();
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -68,4 +66,4 @@ struct wall_timer {
 };
 #endif
 
-#endif /* SPARFUN_SPARFUN_UTIL_H */
+#endif  // MRTSQR_CXX_SPARFUN_UTIL_H

@@ -77,14 +77,14 @@ void sf_srand(unsigned long seed) {
   sparfun_rand_unif = variate_t(sparfun_rand, distribution_t(0.0, 1.0));
 }
 
-/** Return a seed based on the time. */
+// Return a seed based on the time.
 unsigned long sf_timeseed(void) {
   unsigned long seed = (unsigned long) sf_time();
   sf_srand(seed);
   return seed;
 }
 
-/** Return a seed based on random_device */
+// Return a seed based on random_device.
 unsigned long sf_randseed(void) {
   tr1ns::random_device dev;
   unsigned long seed = (unsigned long) dev();

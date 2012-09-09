@@ -1,10 +1,10 @@
 # Makefile designed to run on the icme-hadoop1 cluster at
 # ICME, Stanford University
 CXX=g++
-
+ATLAS=./atlas
 CC=$(CXX)
 CXXFLAGS=-Wall -O3  -std=c++0x
-LDFLAGS=-L./atlas -llapack -lf77blas -lcblas -latlas 
+LDFLAGS=-L$(ATLAS) -llapack -lf77blas -lcblas -latlas 
 
 # note: NERSC machines need mkl and gcc modules
 NERSC := $(shell uname -r)
@@ -13,38 +13,28 @@ ifneq (, $(filter %nersc,$(NERSC)))
   LDFLAGS=$(MKL) -lpthread
 endif
 
-all: tsqr word_count colsums tests
+SRC=tsqr.cc direct_tsqr.cc sparfun_util.cc typedbytes.cc tsqr_util.cc MatrixHandler.cc
+TSQR_OBJS=tsqr.o direct_tsqr.o sparfun_util.o typedbytes.o tsqr_util.o MatrixHandler.o
 
-tests: dump_typedbytes_info write_typedbytes_test
-	./write_typedbytes_test write.tb
-	./dump_typedbytes_info write.tb > test/dump_test.cur
-	diff test/dump_test.cur test/dump_test.out
-	rm write.tb
-	rm test/dump_test.cur
+all: tsqr
 
-test_tsqr: tsqr 
-	cat test/test.mseq | ./tsqr map 2> /dev/null | ./tsqr reduce &> /dev/null
+tsqr: $(TSQR_OBJS) $(SRC)
+	$(CC) $(CXXFLAS) $(LDFLAGS) -o tsqr $(TSQR_OBJS)
 
-typedbytes.o: typedbytes.h
-dump_typedbytes_info.o: typedbytes.h
-write_typedbytes_test.o: typedbytes.h
-word_count.o: typedbytes.h
+tsqr.o: tsqr.cc sparfun_util.cc typedbytes.cc MatrixHandler.cc direct_tsqr.cc
+	$(CC) $(CXXFLAGS) $(LDFLAGS) -c tsqr.cc -o tsqr.o
 
-colsums.o: typedbytes.h
-tsqr.o: typedbytes.h sparfun_util.h
-sf_util.o: sparfun_util.h
+sparfun_util.o: sparfun_util.cc
+	$(CC) $(CXXFLAGS) -c sparfun_util.cc -o sparfun_util.o
 
-colsums: colsums.o typedbytes.o
+direct_tsqr.o: direct_tsqr.cc typedbytes.cc typedbytes.h tsqr_util.h
+	$(CC) $(CXXFLAGS) $(LDFLAGS) -c direct_tsqr.cc -o direct_tsqr.o
 
-tsqr: tsqr.o typedbytes.o sf_util.o
+typedbytes.o: typedbytes.cc typedbytes.h
+	$(CC) $(CXXFLAGS) $(LDFLAGS) -c typedbytes.cc -o typedbytes.o
 
-word_count: word_count.o typedbytes.o
-
-dump_typedbytes_info: typedbytes.o dump_typedbytes_info.o
-
-write_typedbytes_test: typedbytes.o write_typedbytes_test.o
-
-.PHONY: all clean tests test_tsqr
+MatrixHandler.o: MatrixHandler.cc
+	$(CC) $(CXXFLAGS) $(LDFLAGS) -c MatrixHandler.cc -o MatrixHandler.o
 
 clean:
 	rm -rf *.o dump_typedbytes_info tsqr
