@@ -1,13 +1,10 @@
-/**
- * @file typedbytes.cc
- * An implementation of a few of the more complicated typedbytes functions.
- */
-
 #include "typedbytes.h"
 #include "stdio.h"
 
 #include <string>
 #include <vector>
+
+#define IS_TYPEDBYTES_BYTE_SEQUENCE(type) ((type) >= 50 && (type) <= 200)
 
 static inline void push_opaque_typecode(typedbytes_opaque& buffer,
                                         TypedBytesType code) {
@@ -41,7 +38,7 @@ bool TypedBytesInFile::_read_opaque_primitive(typedbytes_opaque& buffer,
   // NOTE the typecode has already been pushed
     
   // translate this type to avoid nastiness in the switch.
-  if (t >= 50 && t <= 200) {
+  if (IS_TYPEDBYTES_BYTE_SEQUENCE(t)) {
     t = TypedBytesByteSequence;
   }
   switch (t) {
@@ -92,7 +89,7 @@ bool TypedBytesInFile::_read_opaque(typedbytes_opaque& buffer, bool list) {
   if (t == TypedBytesByteSequence || t == TypedBytesByte ||
       t == TypedBytesBoolean || t == TypedBytesInteger || t==TypedBytesLong ||
       t == TypedBytesFloat || t == TypedBytesDouble || 
-      t == TypedBytesString || (t >= 50 && t <= 200)) {
+      t == TypedBytesString || IS_TYPEDBYTES_BYTE_SEQUENCE(t)) {
     _read_opaque_primitive(buffer, t);
   } else if (t == TypedBytesVector) {
     typedbytes_length len = read_typedbytes_sequence_length();
@@ -130,12 +127,11 @@ bool TypedBytesInFile::skip_next() {
   return read_opaque(value);
 }
 
-/** Get the next type code as a supported type. */
 TypedBytesType TypedBytesInFile::next_type() {
   unsigned char code = next_type_code();
   if (code <= 10 || code == 255) {
     return (TypedBytesType)code;
-  } else if (code >= 50 && code <= 200) {
+  } else if (IS_TYPEDBYTES_BYTE_SEQUENCE(code)) {
     return TypedBytesByteSequence;
   } else if (code == TypedBytesTypeError) {
     // error flag already set in this case.
@@ -146,10 +142,6 @@ TypedBytesType TypedBytesInFile::next_type() {
   }
 }
     
-/** Get the next type code as a raw byte.
- * This command is useful if you are seralizing custom types.
- * This command returns TypedBytesTypeError on an error.
- */
 unsigned char TypedBytesInFile::next_type_code() {
   int c = fgetc(stream_);
   // reset last_length_
@@ -164,9 +156,6 @@ unsigned char TypedBytesInFile::next_type_code() {
   }
 }
     
-/** Read bytes and handle errors.
- * DO NOT call this function directly.
- */
 size_t TypedBytesInFile::_read_bytes(void *ptr, size_t nbytes, size_t nelem) {
   size_t nread = fread(ptr, nbytes, nelem, stream_);
   if (nread != nelem) {
@@ -178,7 +167,6 @@ size_t TypedBytesInFile::_read_bytes(void *ptr, size_t nbytes, size_t nelem) {
   return nread;
 }
     
-/** Read a 32-bit integer for the length of a string, vector, or map. */
 int32_t TypedBytesInFile::_read_length() {
   int32_t len = 0;
   _read_bytes(&len, sizeof(int32_t), 1);
@@ -243,7 +231,6 @@ double TypedBytesInFile::read_double() {
   return rval;
 }
     
-/** Read a byte, bool, int, long, or float and convert to double. */
 double TypedBytesInFile::convert_double() {
   if (last_code_ == TypedBytesFloat) {
     return (double) read_float();
@@ -254,7 +241,6 @@ double TypedBytesInFile::convert_double() {
   }
 }
     
-/** Read a byte, bool, int, or long and convert to long. */
 typedbytes_long TypedBytesInFile::convert_long() {
   if (last_code_ == TypedBytesLong) {
     return (long) read_long();
@@ -263,7 +249,6 @@ typedbytes_long TypedBytesInFile::convert_long() {
   }
 }
     
-/** Read a byte, bool, int, or long and convert to long. */
 int TypedBytesInFile::convert_int() {
   if (last_code_ == TypedBytesByte) {
     return (int) read_byte();
@@ -277,38 +262,6 @@ int TypedBytesInFile::convert_int() {
   }
 }
     
-bool TypedBytesInFile::can_be_int(TypedBytesType t) {
-  switch (t) {
-  case TypedBytesByte:
-  case TypedBytesBoolean:
-  case TypedBytesInteger:
-    return true;
-  default:
-    return false;
-  }
-}
-    
-bool TypedBytesInFile::can_be_long(TypedBytesType t) {
-  if (t == TypedBytesLong) {
-    return true;
-  }
-  return can_be_int(t);
-}
-    
-bool TypedBytesInFile::can_be_float(TypedBytesType t) {
-  if (t == TypedBytesFloat) {
-    return true;
-  }
-  return can_be_long(t);
-}
-    
-bool TypedBytesInFile::can_be_double(TypedBytesType t) {
-  if (t == TypedBytesDouble) {
-    return true;
-  }
-  return can_be_float(t);
-}
-        
 int TypedBytesInFile::read_int() {
   typedbytes_check_type_code(TypedBytesInteger);
   int32_t rval = 0;
@@ -333,10 +286,6 @@ typedbytes_length TypedBytesInFile::read_string_length() {
   return len;
 }
     
-/** Must be called after read_string_length 
- * If size < read_string_length(), then you can call
- * this function multiple times sequentially.
- * */
 bool TypedBytesInFile::read_string_data(unsigned char* data, size_t size) {
   typedbytes_check_type_code(TypedBytesString);
   return _read_data_block(data, size);
@@ -355,35 +304,36 @@ bool TypedBytesInFile::read_string(std::string& str) {
 typedbytes_length TypedBytesInFile::read_byte_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
   if (last_code_ == TypedBytesByteSequence || 
-      (last_code_ >= 50 && last_code_ <= 200)) {} // do nothing here
-  else {
-    typedbytes_check_type_code(TypedBytesTypeError); }
+      IS_TYPEDBYTES_BYTE_SEQUENCE(last_code_)) {
+    // do nothing here
+  } else {
+    typedbytes_check_type_code(TypedBytesTypeError);
+  }
 #endif
   typedbytes_length len = _read_length();
   last_length_ = len;
   return len;
 }
     
-/** Must be called after read_byte_sequence_length
- * If size < read_byte_sequence_length(), then you can call
- * this function multiple times sequentially.
- */
 bool TypedBytesInFile::read_byte_sequence(unsigned char* data, size_t size) {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-  if (last_code_ == TypedBytesByteSequence || 
-      (last_code_ >= 50 && last_code_ <= 200)) {} // do nothing here
-  else { typedbytes_check_type_code(TypedBytesTypeError); }
+  if (last_code_ == TypedBytesByteSequence ||
+      IS_TYPEDBYTES_BYTE_SEQUENCE(last_code_)) {
+    // do nothing here
+  } else {
+    typedbytes_check_type_code(TypedBytesTypeError);
+  }
 #endif
   return _read_data_block(data, size);
 }
 
-/** The vector and map types are considered sequence types.
- * You are responsible for handling these types yourself.
- */
 typedbytes_length TypedBytesInFile::read_typedbytes_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-  if (last_code_ == TypedBytesVector || last_code_ == TypedBytesMap) {} 
-  else { typedbytes_check_type_code(TypedBytesTypeError); }
+  if (last_code_ == TypedBytesVector || last_code_ == TypedBytesMap) {
+    // do nothing here
+  } else {
+    typedbytes_check_type_code(TypedBytesTypeError);
+  }
 #endif        
   return _read_length();
 }
@@ -432,4 +382,3 @@ bool TypedBytesOutFile::write_double(double val) {
   return _write_code(TypedBytesDouble) &&
     _write_bytes(&sval, sizeof(int64_t), 1);
 }
-

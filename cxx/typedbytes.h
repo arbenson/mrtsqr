@@ -76,11 +76,21 @@ class TypedBytesInFile {
   // Read a byte, bool, int, or long and convert to long.
   int convert_int();
 
-  bool can_be_int(TypedBytesType t);
-  bool can_be_long(TypedBytesType t);
-  bool can_be_float(TypedBytesType t);
-  bool can_be_double(TypedBytesType t);
-        
+  bool can_be_int(TypedBytesType type) {
+    return (type == TypedBytesByte ||
+	    type == TypedBytesBoolean ||
+	    type == TypedBytesInteger);
+  }
+  bool can_be_long(TypedBytesType type) {
+    return type == TypedBytesLong || can_be_int(type);
+  }
+  bool can_be_float(TypedBytesType type) {
+    return type == TypedBytesFloat || can_be_long(type);
+  }
+  bool can_be_double(TypedBytesType type) {
+    return type == TypedBytesDouble || can_be_float(type);
+  }
+
   bool read_opaque(typedbytes_opaque& buffer);
     
   // Skip the next entry in the TypedBytes file.
