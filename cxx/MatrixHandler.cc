@@ -1,3 +1,5 @@
+#include <vector>
+
 #include "mrmc.h"
 #include "typedbytes.h"
 
