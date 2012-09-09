@@ -55,6 +55,81 @@ public:
   std::vector<double> local_matrix_;
 };
 
+class SerialTSQR : public MatrixHandler {
+public:
+  SerialTSQR(TypedBytesInFile& in, TypedBytesOutFile& out,
+            size_t blocksize, size_t rows_per_record)
+    : MatrixHandler(in, out, blocksize, rows_per_record) {}
+  virtual ~SerialTSQR() {}
+
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value);
+  // compress the local QR factorization
+  void compress();
+  // Output the matrix with random keys for the rows.
+  void output();
+};
+
+class Cholesky : public MatrixHandler {
+public:
+  Cholesky(TypedBytesInFile& in, TypedBytesOutFile& out,
+           size_t blocksize, size_t rows_per_record)
+    : MatrixHandler(in, out, blocksize, rows_per_record) {}
+
+  int read_key();
+  void first_row();
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+    
+  // read in a row and add it to the local matrix
+  void add_row(const std::vector<double>& row, int row_index);
+
+  void reducer() { mapper(); }
+  
+  // Output the row sums
+  void output();
+
+private:
+  std::vector<double*> rows_;
+};
+
+class AtA : public MatrixHandler {
+public:
+  AtA(TypedBytesInFile& in, TypedBytesOutFile& out,
+      size_t blocksize, size_t rows_per_record)
+    : MatrixHandler(in, out, blocksize, rows_per_record) {
+    local_AtA_ = NULL;
+  }
+
+  // Call syrk and store the result in local AtA computation
+  void compress();
+  // Output the matrix with key equal to row number
+  void output();
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+  
+private:
+  double *local_AtA_;
+};
+
+class RowSum : MatrixHandler {
+public:
+  RowSum(TypedBytesInFile& in, TypedBytesOutFile& out,
+         size_t blocksize, size_t rows_per_record)
+    : MatrixHandler(in, out, blocksize, rows_per_record) {}
+
+  int read_key();
+
+  // Handle the first input row.
+  // The first row of the input is special, and so we handle it differently.
+  virtual void first_row();
+  // read in a row and add it to the local matrix
+  virtual void add_row(const std::vector<double>& row, int row_index);
+  virtual void collect(typedbytes_opaque& key, std::vector<double>& value);
+  virtual void reducer() { mapper(); }  
+  
+private:
+  std::vector<double*> rows_;
+  std::vector<bool> used_;
+};
+
 class FullTSQRMap1 : public MatrixHandler {
 public:
   FullTSQRMap1(TypedBytesInFile& in_, TypedBytesOutFile& out_,
