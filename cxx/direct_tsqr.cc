@@ -1,13 +1,13 @@
-#include "mrmc.h"
-#include "typedbytes.h"
-#include "tsqr_util.h"
-#include "sparfun_util.h"
-
+#include <assert.h>
 #include <stdio.h>
-
-#include <vector>
-#include <string>
 #include <list>
+#include <string>
+#include <vector>
+
+#include "mrmc.h"
+#include "sparfun_util.h"
+#include "tsqr_util.h"
+#include "typedbytes.h"
 
 std::string FullTSQRMap1::pseudo_uuid() {
   char buf[32];
