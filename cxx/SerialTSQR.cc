@@ -29,6 +29,10 @@ void SerialTSQR::compress() {
 
 // Output the matrix with random keys for the rows.
 void SerialTSQR::output() {
+  if (num_cols_ == 0) {
+    // no data was received on this task
+    return;
+  }
   compress();
   for (size_t i = 0; i < num_local_rows_; ++i) {
     int rand_int = sf_randint(0, 2000000000);
