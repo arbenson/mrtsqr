@@ -23,12 +23,11 @@ static inline void push_opaque_bytes(typedbytes_opaque& buffer,
 static inline void push_opaque_length(typedbytes_opaque& buffer,
                                       typedbytes_length len) {
   len = bswap32(len);
-  push_opaque_bytes(buffer, (unsigned char*)&len, sizeof(typedbytes_length));
+  push_opaque_bytes(buffer, (unsigned char*) &len, sizeof(typedbytes_length));
 }
-    
 
 bool TypedBytesInFile::_read_opaque_primitive(typedbytes_opaque& buffer, 
-                                              TypedBytesType t) {
+                                              TypedBytesType type) {
   // TODO check the fread commands in this function
   unsigned char bytebuf = 0;
   int32_t intbuf = 0;
@@ -38,10 +37,10 @@ bool TypedBytesInFile::_read_opaque_primitive(typedbytes_opaque& buffer,
   // NOTE the typecode has already been pushed
     
   // translate this type to avoid nastiness in the switch.
-  if (IS_TYPEDBYTES_BYTE_SEQUENCE(t)) {
-    t = TypedBytesByteSequence;
-  }
-  switch (t) {
+  if (IS_TYPEDBYTES_BYTE_SEQUENCE(type))
+    type = TypedBytesByteSequence;
+
+  switch (type) {
   case TypedBytesByte:
   case TypedBytesBoolean:
     fread(&bytebuf, sizeof(unsigned char), 1, stream_);
@@ -84,34 +83,42 @@ bool TypedBytesInFile::_read_opaque_primitive(typedbytes_opaque& buffer,
 }
 
 bool TypedBytesInFile::_read_opaque(typedbytes_opaque& buffer, bool list) {
-  TypedBytesType t = next_type();
-  push_opaque_typecode(buffer, t);
-  if (t == TypedBytesByteSequence || t == TypedBytesByte ||
-      t == TypedBytesBoolean || t == TypedBytesInteger || t==TypedBytesLong ||
-      t == TypedBytesFloat || t == TypedBytesDouble || 
-      t == TypedBytesString || IS_TYPEDBYTES_BYTE_SEQUENCE(t)) {
-    _read_opaque_primitive(buffer, t);
-  } else if (t == TypedBytesVector) {
-    typedbytes_length len = read_typedbytes_sequence_length();
+  TypedBytesType type = next_type();
+  push_opaque_typecode(buffer, type);
+  typedbytes_length len;
+  switch (type) {
+  case TypedBytesByteSequence:
+  case TypedBytesByte:
+  case TypedBytesBoolean:
+  case TypedBytesInteger:
+  case TypedBytesLong:
+  case TypedBytesFloat:
+  case TypedBytesDouble:
+  case TypedBytesString:
+    _read_opaque_primitive(buffer, type);
+    break;
+  case TypedBytesVector:
+    len = read_typedbytes_sequence_length();
     push_opaque_length(buffer, len);
     for (int i = 0; i < len; ++i) {
       _read_opaque(buffer, false);
     }
-  } else if(t == TypedBytesMap) {
-    typedbytes_length len = read_typedbytes_sequence_length();
+    break;
+  case TypedBytesMap:
+    len = read_typedbytes_sequence_length();
     push_opaque_length(buffer, len);
     for (int i = 0; i < len; ++i) {
       _read_opaque(buffer, false);
       _read_opaque(buffer, false);
     }
-  } else if (t == TypedBytesList) {
+    break;
+  case TypedBytesList:
     while (last_code_ != TypedBytesListEnd) {
       _read_opaque(buffer, true);
     }
-  } else if (list && t == TypedBytesListEnd) {
-    return true;
-  } else {
-    return false;
+    break;
+  default:
+    return list && type == TypedBytesListEnd;
   }
   return true;
 }
@@ -143,16 +150,16 @@ TypedBytesType TypedBytesInFile::next_type() {
 }
     
 unsigned char TypedBytesInFile::next_type_code() {
-  int c = fgetc(stream_);
+  int ch = fgetc(stream_);
   // reset last_length_
   last_length_ = -1;
-  if (c == EOF) {
+  if (ch == EOF) {
     // TODO set error flag
     last_code_ = TypedBytesTypeError;
     return (unsigned char) TypedBytesTypeError;
   } else {
-    last_code_ = (TypedBytesType) c;
-    return (unsigned char) c;
+    last_code_ = (TypedBytesType) ch;
+    return (unsigned char) ch;
   }
 }
     
@@ -308,9 +315,8 @@ typedbytes_length TypedBytesInFile::read_byte_sequence_length() {
     typedbytes_check_type_code(TypedBytesTypeError);
   }
 #endif
-  typedbytes_length len = _read_length();
-  last_length_ = len;
-  return len;
+  last_length_ = _read_length();
+  return last_length_;
 }
     
 bool TypedBytesInFile::read_byte_sequence(unsigned char* data, size_t size) {
