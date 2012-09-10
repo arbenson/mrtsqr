@@ -197,27 +197,27 @@ bool TypedBytesInFile::_read_data_block(unsigned char* data, size_t size) {
 }
     
 #ifdef TYPEDBYTES_STRICT_TYPE
-# define typedbytes_check_type_code(x) (assert((x) == last_code_))
+# define TYPEDBYTES_CHECK_TYPE_CODE(x) (assert((x) == last_code_))
 #else
-# define typedbytes_check_type_code(x)
+# define TYPEDBYTES_CHECK_TYPE_CODE(x)
 #endif    
 
 signed char TypedBytesInFile::read_byte() {
-  typedbytes_check_type_code(TypedBytesByte);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesByte);
   signed char rval = 0;
   _read_bytes(&rval, sizeof(signed char), 1);
   return (rval);
 }
     
 bool TypedBytesInFile::read_bool() {
-  typedbytes_check_type_code(TypedBytesBoolean);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesBoolean);
   signed char rval = 0;
   _read_bytes(&rval, sizeof(signed char), 1);
   return (bool) rval;
 }
 
 float TypedBytesInFile::read_float() {
-  typedbytes_check_type_code(TypedBytesFloat);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesFloat);
   int32_t val = 0;
   _read_bytes(&val, sizeof(int32_t), 1);
   val = bswap32(val);
@@ -227,7 +227,7 @@ float TypedBytesInFile::read_float() {
 }
     
 double TypedBytesInFile::read_double() {
-  typedbytes_check_type_code(TypedBytesDouble);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesDouble);
   int64_t val = 0;
   _read_bytes(&val, sizeof(int64_t), 1);
   val = bswap64(val);
@@ -268,7 +268,7 @@ int TypedBytesInFile::convert_int() {
 }
     
 int TypedBytesInFile::read_int() {
-  typedbytes_check_type_code(TypedBytesInteger);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesInteger);
   int32_t rval = 0;
   _read_bytes(&rval, sizeof(int32_t), 1);
   rval = bswap32(rval);
@@ -276,7 +276,7 @@ int TypedBytesInFile::read_int() {
 }
     
 typedbytes_long TypedBytesInFile::read_long() {
-  typedbytes_check_type_code(TypedBytesLong);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesLong);
   int64_t rval = 0;
   _read_bytes(&rval, sizeof(int64_t), 1);
   rval = bswap64(rval);
@@ -285,19 +285,19 @@ typedbytes_long TypedBytesInFile::read_long() {
     
 
 typedbytes_length TypedBytesInFile::read_string_length() {
-  typedbytes_check_type_code(TypedBytesString);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesString);
   typedbytes_length len = _read_length();
   last_length_ = len;
   return len;
 }
     
 bool TypedBytesInFile::read_string_data(unsigned char* data, size_t size) {
-  typedbytes_check_type_code(TypedBytesString);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesString);
   return _read_data_block(data, size);
 }
     
 bool TypedBytesInFile::read_string(std::string& str) {
-  typedbytes_check_type_code(TypedBytesString);
+  TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesString);
   typedbytes_length len = _read_length();
   str.resize(len);
   assert(len >= 0);
@@ -308,12 +308,9 @@ bool TypedBytesInFile::read_string(std::string& str) {
     
 typedbytes_length TypedBytesInFile::read_byte_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-  if (last_code_ == TypedBytesByteSequence || 
-      IS_TYPEDBYTES_BYTE_SEQUENCE(last_code_)) {
-    // do nothing here
-  } else {
-    typedbytes_check_type_code(TypedBytesTypeError);
-  }
+  if (last_code_ != TypedBytesByteSequence &&
+      !IS_TYPEDBYTES_BYTE_SEQUENCE(last_code_))
+    TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesTypeError);
 #endif
   last_length_ = _read_length();
   return last_length_;
@@ -321,23 +318,17 @@ typedbytes_length TypedBytesInFile::read_byte_sequence_length() {
     
 bool TypedBytesInFile::read_byte_sequence(unsigned char* data, size_t size) {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-  if (last_code_ == TypedBytesByteSequence ||
-      IS_TYPEDBYTES_BYTE_SEQUENCE(last_code_)) {
-    // do nothing here
-  } else {
-    typedbytes_check_type_code(TypedBytesTypeError);
-  }
+  if (last_code_ != TypedBytesByteSequence &&
+      !IS_TYPEDBYTES_BYTE_SEQUENCE(last_code_))
+    TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesTypeError);
 #endif
   return _read_data_block(data, size);
 }
 
 typedbytes_length TypedBytesInFile::read_typedbytes_sequence_length() {
 #ifdef TYPEDBYTES_STRICT_TYPE        
-  if (last_code_ == TypedBytesVector || last_code_ == TypedBytesMap) {
-    // do nothing here
-  } else {
-    typedbytes_check_type_code(TypedBytesTypeError);
-  }
+  if (last_code_ != TypedBytesVector && last_code_ != TypedBytesMap)
+    TYPEDBYTES_CHECK_TYPE_CODE(TypedBytesTypeError);
 #endif        
   return _read_length();
 }
@@ -354,9 +345,8 @@ bool TypedBytesOutFile::_write_code(TypedBytesType t) {
 
 bool TypedBytesOutFile::write_bool(bool val) {
   signed char sval = 0;
-  if (val) {
+  if (val)
     sval = 1;
-  }
   return _write_code(TypedBytesBoolean) && _write_bytes(&sval, 1, 1);
 }
     
