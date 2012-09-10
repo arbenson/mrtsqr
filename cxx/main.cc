@@ -40,7 +40,13 @@ void handle_direct_tsqr(int argc, char **argv) {
 }
 
 void handle_indirect_tsqr(int argc, char **argv) {
+  // create typed bytes files
+  TypedBytesInFile in(stdin);
+  TypedBytesOutFile out(stdout);
 
+  if (argc < 1) {
+    fprintf(stderr, "ERROR: missing map/reduce type!\n");
+  }
 }
 
 void handle_cholesky_tsqr(int argc, char **argv) {
