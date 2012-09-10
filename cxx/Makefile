@@ -1,5 +1,4 @@
-# Makefile designed to run on the icme-hadoop1 cluster at
-# ICME, Stanford University
+# Makefile designed for the icme-hadoop1 cluster at ICME, Stanford University
 
 CXX=g++
 ATLAS=./atlas
