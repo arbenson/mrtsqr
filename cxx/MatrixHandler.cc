@@ -98,9 +98,13 @@ void MatrixHandler::first_row() {
   read_key_val_pair(key, row);
   // TODO(arbenson) check for error here
   num_cols_ = row.size();
-  hadoop_message("matrix size: %zi num_cols_, up to %i localrows\n", 
+  hadoop_message("matrix size: %zi columns, up to %i localrows\n", 
 		 num_cols_, blocksize_ * num_cols_);
-  alloc(blocksize_ * num_cols_, num_cols_); 
+  if (num_cols_ == 0) {
+    hadoop_message("no data received on this task\n");
+    return;
+  }
+  alloc(blocksize_ * num_cols_, num_cols_);
   add_row(row);
 }
     
@@ -120,4 +124,3 @@ void MatrixHandler::add_row(const std::vector<double>& row) {
     ++num_total_rows_;
   }
 }
-
