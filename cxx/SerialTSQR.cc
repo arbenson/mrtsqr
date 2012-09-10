@@ -20,8 +20,7 @@ void SerialTSQR::compress() {
     double dt = sf_time() - t0;
     hadoop_counter("lapack time (millisecs)", (int) (dt * 1000.));
   } else {
-    hadoop_message("lapack error\n");
-    exit(-1);
+    hadoop_error("lapack error\n");
   }
   if (num_cols_ < num_local_rows_) {
     num_local_rows_ = num_cols_;
