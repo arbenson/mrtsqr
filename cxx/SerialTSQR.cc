@@ -5,10 +5,8 @@
 void SerialTSQR::collect(typedbytes_opaque& key, std::vector<double>& value) {
   add_row(value);
   if (num_local_rows_ >= num_rows_) {
-    hadoop_message("about to compress\n");
     compress();
-    hadoop_message("compress appears successful\n");
-    hadoop_counter("compress", 1);
+    hadoop_counter("compressions", 1);
   }
 }
 

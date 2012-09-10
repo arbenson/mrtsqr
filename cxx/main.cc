@@ -12,6 +12,7 @@
 // TODO(arbenson): real command-line options
 
 void handle_direct_tsqr(int argc, char **argv) {
+  fprintf(stderr, "using direct TSQR\n");
   // create typed bytes files
   TypedBytesInFile in(stdin);
   TypedBytesOutFile out(stdout);
@@ -25,32 +26,55 @@ void handle_direct_tsqr(int argc, char **argv) {
     fprintf(stderr, "ERROR: missing ncols!\n");
   }
 
+  // TODO(arbenson): handle rows per record
   if (stage == 1) {
-    FullTSQRMap1 map(in, out, 5, 1);
+    FullTSQRMap1 map(in, out, 1);
     map.mapper();
   } else if (stage == 2) {
     size_t ncols = atoi(argv[1]);
-    FullTSQRReduce2 map(in, out, 5, 1, ncols);
+    FullTSQRReduce2 map(in, out, 1, ncols);
     map.mapper();
   } else if (stage == 3) {
     size_t ncols = atoi(argv[1]);
-    FullTSQRMap3 map(in, out, 5, 1, ncols);
+    FullTSQRMap3 map(in, out, 1, ncols);
     map.mapper();
   }
 }
 
 void handle_indirect_tsqr(int argc, char **argv) {
+  fprintf(stderr, "using indirect TSQR\n");
   // create typed bytes files
   TypedBytesInFile in(stdin);
   TypedBytesOutFile out(stdout);
 
-  if (argc < 1) {
-    fprintf(stderr, "ERROR: missing map/reduce type!\n");
-  }
+  size_t blocksize = 3;
+  if (argc > 0)
+    blocksize = atoi(argv[0]);
+
+  size_t rows_per_record = 1;
+  if (argc > 1)
+    rows_per_record = atoi(argv[1]);
+
+  SerialTSQR map(in, out, blocksize, rows_per_record);
+  map.mapper();
 }
 
 void handle_cholesky_tsqr(int argc, char **argv) {
+  fprintf(stderr, "using Cholesky TSQR\n");
+  // create typed bytes files
+  TypedBytesInFile in(stdin);
+  TypedBytesOutFile out(stdout);
 
+  size_t blocksize = 3;
+  if (argc > 0)
+    blocksize = atoi(argv[0]);
+
+  size_t rows_per_record = 1;
+  if (argc > 1)
+    rows_per_record = atoi(argv[1]);
+
+  AtA map(in, out, blocksize, rows_per_record);
+  map.mapper();
 }
 
 int main(int argc, char **argv) {  
@@ -69,6 +93,9 @@ int main(int argc, char **argv) {
     handle_indirect_tsqr(argc - 2, argv + 2);
   } else if (!strcmp(argv[1], "cholesky")) {
     handle_cholesky_tsqr(argc - 2, argv + 2);
+  } else {
+    fprintf(stderr, "unknown method!\n");
+    return -1;
   }
 
   return 0;

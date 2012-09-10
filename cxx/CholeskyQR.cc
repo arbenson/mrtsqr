@@ -30,7 +30,6 @@ void Cholesky::first_row() {
   add_row(row, row_index);
 }
 
-// read in a row and add it to the local matrix
 void Cholesky::add_row(const std::vector<double>& row, int row_index) {
   double *new_row = (double *) malloc(num_cols_ * sizeof(double));
   for (int i = 0; i < (int) num_cols_; ++i) {
@@ -39,7 +38,6 @@ void Cholesky::add_row(const std::vector<double>& row, int row_index) {
   rows_[row_index] = new_row;
 }
   
-// Output the row sums
 void Cholesky::output() {
   int dim = (int) num_cols_;
   double *A = (double *) malloc(dim * dim * sizeof(double));
@@ -74,7 +72,14 @@ void Cholesky::output() {
   }
 }
 
-// Call syrk and store the result in local AtA computation
+void AtA::collect(typedbytes_opaque& key, std::vector<double>& value) {
+  add_row(value);
+  if (num_local_rows_ >= num_rows_) {
+    compress();
+    hadoop_counter("compressions", 1);
+  }
+}
+
 void AtA::compress() {
   double t0 = sf_time();
   if (!local_AtA_) {
@@ -86,13 +91,11 @@ void AtA::compress() {
     double dt = sf_time() - t0;
     hadoop_counter("lapack time (millisecs)", (int) (dt * 1000.));
   } else {
-    hadoop_message("lapack error\n");
-    exit(-1);
+    hadoop_error("lapack error\n");
   }
   num_local_rows_ = 0;
 }
     
-// Output the matrix with key equal to row number
 void AtA::output() {
   for (size_t i = 0; i < num_cols_; ++i) {
     out_.write_int(i);
@@ -104,7 +107,6 @@ void AtA::output() {
   }
 }
 
-
 int RowSum::read_key() {
   TypedBytesType type = in_.next_type();
   if (type != TypedBytesInteger) {
@@ -115,10 +117,6 @@ int RowSum::read_key() {
   return in_.read_int();
 }
     
-/** Handle the first input row.
- * The first row of the input is special, and so we handle
- * it differently.
- */
 void RowSum::first_row() {
   int row_index = read_key();
   std::vector<double> row;
@@ -136,7 +134,6 @@ void RowSum::first_row() {
   add_row(row, row_index);
 }
     
-// read in a row and add it to the local matrix
 void RowSum::add_row(const std::vector<double>& row, int row_index) {
   assert(row.size() == num_cols_);
   if(used_[row_index]) {
@@ -162,7 +159,6 @@ void RowSum::collect(typedbytes_opaque& key, std::vector<double>& value) {
   add_row(value, (int) key_converted);
 }
 
-// Output the row sums
 void RowSum::output() {
   assert(rows_.size() == used_.size());
   int num_rows_ = (int)rows_.size();

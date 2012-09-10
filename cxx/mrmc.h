@@ -58,7 +58,7 @@ public:
 class SerialTSQR : public MatrixHandler {
 public:
   SerialTSQR(TypedBytesInFile& in, TypedBytesOutFile& out,
-            size_t blocksize, size_t rows_per_record)
+             size_t blocksize, size_t rows_per_record)
     : MatrixHandler(in, out, blocksize, rows_per_record) {}
   virtual ~SerialTSQR() {}
 
@@ -103,7 +103,7 @@ public:
   void compress();
   // Output the matrix with key equal to row number
   void output();
-  void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+  void collect(typedbytes_opaque& key, std::vector<double>& value);
   
 private:
   double *local_AtA_;
@@ -133,9 +133,9 @@ private:
 
 class FullTSQRMap1 : public MatrixHandler {
 public:
-  FullTSQRMap1(TypedBytesInFile& in_, TypedBytesOutFile& out_,
-               size_t blocksize_, size_t rows_per_record_)
-    : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
+  FullTSQRMap1(TypedBytesInFile& in, TypedBytesOutFile& out,
+               size_t rows_per_record)
+    : MatrixHandler(in, out, -1, rows_per_record) {
     mapper_id_ = pseudo_uuid();
     num_cols_ = 0;
   }
@@ -154,9 +154,9 @@ private:
 
 class FullTSQRReduce2: public MatrixHandler {
 public:
-  FullTSQRReduce2(TypedBytesInFile& in_, TypedBytesOutFile& out_,
-                  size_t blocksize_, size_t rows_per_record_, size_t num_cols)
-    : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
+  FullTSQRReduce2(TypedBytesInFile& in, TypedBytesOutFile& out,
+                  size_t rows_per_record, size_t num_cols)
+    : MatrixHandler(in, out, -1, rows_per_record) {
     num_cols_ = num_cols;
   }
 
@@ -173,10 +173,11 @@ private:
 
 class FullTSQRMap3: public MatrixHandler {
 public:
-  FullTSQRMap3(TypedBytesInFile& in_, TypedBytesOutFile& out_,
-               size_t blocksize_, size_t rows_per_record_, size_t num_cols)
-    : MatrixHandler(in_, out_, blocksize_, rows_per_record_) {
+  FullTSQRMap3(TypedBytesInFile& in, TypedBytesOutFile& out,
+               size_t rows_per_record, size_t num_cols)
+    : MatrixHandler(in, out, -1, rows_per_record_) {
     num_cols_ = num_cols;
+    // TODO(arbenson): make the Q2 path a constructor argument
     Q2_path_ = "Q2.txt.out";
   }
 
