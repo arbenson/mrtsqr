@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
     return -1;
   }
 
+  // TODO(arbenson): Cholesky QR is broken
   if (!strcmp(argv[1], "direct")) {
     handle_direct_tsqr(argc - 2, argv + 2);
   } else if (!strcmp(argv[1], "indirect")) {
