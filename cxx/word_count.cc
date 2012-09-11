@@ -43,15 +43,15 @@ std::vector<std::string>& split(
 void mapper(TypedBytesInFile& in, TypedBytesOutFile& out) {
     fprintf(stderr, "starting mapper...\n");
     std::string value;
-    while (!feof(in.stream)) {
+    while (!feof(in.get_stream())) {
         // read the key
         TypedBytesType keycode = in.next_type();
         if (keycode == TypedBytesTypeError) {
-            if (feof(in.stream)) {
+            if (feof(in.get_stream())) {
                 return;
             }
             else {
-                fprintf(stderr, "!eof but typeerror=%i\n", in.lastcode);
+                fprintf(stderr, "!eof but typeerror=%i\n", in.get_last_code());
                 return;
             }
         }
@@ -81,7 +81,7 @@ void mapper(TypedBytesInFile& in, TypedBytesOutFile& out) {
 void reducer(TypedBytesInFile& in, TypedBytesOutFile& out) {
     std::string curkey;
     std::string nextkey;
-    if (feof(in.stream)) {
+    if (feof(in.get_stream())) {
         return;
     }
     
@@ -93,14 +93,14 @@ void reducer(TypedBytesInFile& in, TypedBytesOutFile& out) {
     
     int64_t reduce_val = value;
     
-    while (!feof(in.stream)) {
+    while (!feof(in.get_stream())) {
         TypedBytesType keytype = in.next_type();
         if (keytype==TypedBytesTypeError) {
-            if (feof(in.stream)) {
+            if (feof(in.get_stream())) {
                 return;
             }
             else {
-                fprintf(stderr, "!eof but typeerror=%i\n", in.lastcode);
+                fprintf(stderr, "!eof but typeerror=%i\n", in.get_last_code());
                 return;
             }
         }

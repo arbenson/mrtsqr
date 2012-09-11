@@ -82,7 +82,7 @@ void dump_typedbytes_primitive(TypedBytesInFile& f, TypedBytesType t, int indent
                 }
                 printf("TypedBytesString: %s\n", s.c_str());
             } else {
-                printf("TypedBytesString: ERROR\n");
+	        printf("TypedBytesString: ERROR\n");
             }
             break;
             
@@ -92,46 +92,46 @@ void dump_typedbytes_primitive(TypedBytesInFile& f, TypedBytesType t, int indent
     }
 }
 
-void dump_typedbytes_one(TypedBytesInFile& f, int indent) {
-    TypedBytesType t = f.next_type();
+void dump_typedbytes_one(TypedBytesInFile& in, int indent) {
+    TypedBytesType t = in.next_type();
     if (t == TypedBytesByteSequence || t == TypedBytesByte ||
-        t == TypedBytesBoolean || t == TypedBytesInteger || t==TypedBytesLong ||
+        t == TypedBytesBoolean || t == TypedBytesInteger || t == TypedBytesLong ||
         t == TypedBytesFloat || t == TypedBytesDouble || 
         t == TypedBytesString) {
-        dump_typedbytes_primitive(f, t, indent);
+        dump_typedbytes_primitive(in, t, indent);
     } else if (t==TypedBytesVector) {
-        typedbytes_length len = f.read_typedbytes_sequence_length();
+        typedbytes_length len = in.read_typedbytes_sequence_length();
         print_indent(indent);
-        printf("TypedBytesVector: length=%i\n",len);
-        for (int i=0; i<len; i++) {
-            dump_typedbytes_one(f, indent+2);
+        printf("TypedBytesVector: length=%i\n", len);
+        for (int i = 0; i < len; ++i) {
+            dump_typedbytes_one(in, indent+2);
         }
     } else if(t==TypedBytesMap) {
-        typedbytes_length len = f.read_typedbytes_sequence_length();
+        typedbytes_length len = in.read_typedbytes_sequence_length();
         print_indent(indent);
-        printf("TypedBytesMap: length=%i\n",len);
-        for (int i=0; i<len; i++) {
-            print_indent(indent+1);
+        printf("TypedBytesMap: length=%i\n", len);
+        for (int i = 0; i < len; ++i) {
+            print_indent(indent + 1);
             printf("Key:\n");
-            dump_typedbytes_one(f, indent+2);
-            print_indent(indent+1);
+            dump_typedbytes_one(in, indent + 2);
+            print_indent(indent + 1);
             printf("Value:\n");
-            dump_typedbytes_one(f, indent+2);
+            dump_typedbytes_one(in, indent + 2);
         }
-    } else if (t==TypedBytesList) {
+    } else if (t == TypedBytesList) {
         print_indent(indent);
         printf("TypedBytesList:\n");
-        while (f.lastcode != TypedBytesListEnd) {
-            dump_typedbytes_one(f, indent+2);
+        while (in.get_last_code() != TypedBytesListEnd) {
+            dump_typedbytes_one(in, indent + 2);
         }
-    } else if (t==TypedBytesListEnd) {
+    } else if (t == TypedBytesListEnd) {
         return;
     }
 }
         
-void dump_typedbytes_all(TypedBytesInFile& f, int indent) {
-    while (!feof(f.stream)) {
-        dump_typedbytes_one(f, indent);
+void dump_typedbytes_all(TypedBytesInFile& in, int indent) {
+  while (!feof(in.get_stream())) {
+        dump_typedbytes_one(in, indent);
     }
 }
 

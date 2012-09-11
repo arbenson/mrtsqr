@@ -132,9 +132,9 @@ public:
     void mapper() {
         std::vector<double> row;
         first_row(); // handle the first row
-        while (!feof(in.stream)) {
+        while (!feof(in.get_stream())) {
             if (in.skip_next() == false) {
-                if (feof(in.stream)) {
+                if (feof(in.get_stream())) {
                     break;
                 } else {
                     hadoop_message("invalid key: row %i\n", totalrows);
@@ -153,9 +153,9 @@ public:
         bool more_data = false;
         int cur_key = 0;
         double rval = 0.;
-        while (!feof(in.stream)) {
+        while (!feof(in.get_stream())) {
             TypedBytesType keytype = in.next_type();
-            if (keytype == TypedBytesTypeError && feof(in.stream)) {
+            if (keytype == TypedBytesTypeError && feof(in.get_stream())) {
                 // we are at the end of the file.
                 break;
             }

@@ -1,9 +1,10 @@
+# Makefile designed for the icme-hadoop1 cluster at ICME, Stanford University
 
-CXX=g++44
-
+CXX=g++
+ATLAS=./atlas
 CC=$(CXX)
 CXXFLAGS=-Wall -O3  -std=c++0x
-LDFLAGS=-L/usr/lib64/atlas -llapack43 -lf77blas43 -latlas43
+LDFLAGS=-L$(ATLAS) -llapack -lf77blas -lcblas -latlas
 
 # note: NERSC machines need mkl and gcc modules
 NERSC := $(shell uname -r)
@@ -12,7 +13,20 @@ ifneq (, $(filter %nersc,$(NERSC)))
   LDFLAGS=$(MKL) -lpthread
 endif
 
+BASE=MatrixHandler sparfun_util typedbytes tsqr_util
+BASE_SRC=$(addsuffix .cc, $(BASE))
+
+TSQR_ALL=main direct_tsqr SerialTSQR CholeskyQR $(BASE)
+
+OBJ_OUT=tsqr-objs
+
+SRC=$(addsuffix .cc, $(TSQR_ALL))
+OBJS=$(addsuffix .o, $(TSQR_ALL))
+
 all: tsqr word_count colsums tests
+
+tsqr: $(OBJS) $(SRC)
+	$(CC) $(CXXFLAS) $(LDFLAGS) -o tsqr $(OBJS)
 
 tests: dump_typedbytes_info write_typedbytes_test
 	./write_typedbytes_test write.tb
@@ -21,31 +35,16 @@ tests: dump_typedbytes_info write_typedbytes_test
 	rm write.tb
 	rm test/dump_test.cur
 
-test_tsqr: tsqr 
-	cat test/test.mseq | ./tsqr map 2> /dev/null | ./tsqr reduce &> /dev/null
-
-typedbytes.o: typedbytes.h
-dump_typedbytes_info.o: typedbytes.h
-write_typedbytes_test.o: typedbytes.h
-word_count.o: typedbytes.h
-
-colsums.o: typedbytes.h
-tsqr.o: typedbytes.h sparfun_util.h
-sf_util.o: sparfun_util.h
-
 colsums: colsums.o typedbytes.o
-
-tsqr: tsqr.o typedbytes.o sf_util.o
-
 word_count: word_count.o typedbytes.o
-
 dump_typedbytes_info: typedbytes.o dump_typedbytes_info.o
-
 write_typedbytes_test: typedbytes.o write_typedbytes_test.o
 
-.PHONY: all clean tests test_tsqr
+main.o: $(SRC)
+SerialTSQR.o: SerialTSQR.cc $(BASE_SRC)
+CholeskyQR.o: CholeskyQR.cc $(BASE_SRC)
+direct_tsqr.o: direct_tsqr.cc $(BASE_SRC)
+MatrixHandler.o: $(BASE_SRC)
 
 clean:
-	rm -rf typedbytes.o dump_typedbytes_info.o dump_typedbytes_info
-
-
+	rm -rf *.o dump_typedbytes_info tsqr
