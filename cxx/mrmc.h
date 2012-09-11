@@ -42,6 +42,11 @@ public:
   virtual void collect(typedbytes_opaque& key, std::vector<double>& value) = 0;
   virtual void output() = 0;
 
+  // add time (given in seconds) to the Hadoop counter
+  void incr_lapack_time(double time) {
+    hadoop_counter("lapack time (millisecs)", (int) (time * 1000.));
+  }
+
   TypedBytesInFile& in_;
   TypedBytesOutFile& out_;
 
@@ -69,28 +74,6 @@ public:
   void output();
 };
 
-class Cholesky : public MatrixHandler {
-public:
-  Cholesky(TypedBytesInFile& in, TypedBytesOutFile& out,
-           size_t blocksize, size_t rows_per_record)
-    : MatrixHandler(in, out, blocksize, rows_per_record) {}
-
-  int read_key();
-  void first_row();
-  void collect(typedbytes_opaque& key, std::vector<double>& value) {}
-    
-  // read in a row and add it to the local matrix
-  void add_row(const std::vector<double>& row, int row_index);
-
-  void reducer() { mapper(); }
-  
-  // Output the row sums
-  void output();
-
-private:
-  std::vector<double*> rows_;
-};
-
 class AtA : public MatrixHandler {
 public:
   AtA(TypedBytesInFile& in, TypedBytesOutFile& out,
@@ -109,26 +92,32 @@ private:
   double *local_AtA_;
 };
 
-class RowSum : MatrixHandler {
+class RowSum : public MatrixHandler {
 public:
   RowSum(TypedBytesInFile& in, TypedBytesOutFile& out,
-         size_t blocksize, size_t rows_per_record)
-    : MatrixHandler(in, out, blocksize, rows_per_record) {}
+         size_t rows_per_record)
+    : MatrixHandler(in, out, -1, rows_per_record) {}
 
-  int read_key();
-
-  // Handle the first input row.
-  // The first row of the input is special, and so we handle it differently.
-  void first_row();
-  // read in a row and add it to the local matrix
-  void add_row(const std::vector<double>& row, int row_index);
-  void collect(typedbytes_opaque& key, std::vector<double>& value);
-  void reducer() { mapper(); }  
+  bool read_key_val_pair(int *key, std::vector<double>& value);
   void output();
+  void first_row();
+  void add_row(const std::vector<double>& row, int row_index);
+  void collect(typedbytes_opaque& key, std::vector<double>& value) {}
+  void collect_int_key(int key, std::vector<double>& value);
+  void mapper();
   
-private:
   std::vector<double*> rows_;
   std::vector<bool> used_;
+};
+
+class Cholesky : public RowSum {
+public:
+  Cholesky(TypedBytesInFile& in, TypedBytesOutFile& out,
+           size_t rows_per_record)
+    : RowSum(in, out, rows_per_record) {}
+
+  // Computes Cholesky decomposition and outputs R
+  void output();
 };
 
 class FullTSQRMap1 : public MatrixHandler {

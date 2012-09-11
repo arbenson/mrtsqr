@@ -81,10 +81,10 @@ extern "C" {
  * @param ncols the number of columns of A allocated
  * @param urows the number of rows of A used.
  */
-bool lapack_daxpy(int size, double *x, double *y) {
+bool lapack_daxpy(size_t size, double *x, double *y) {
   int incx = 1;
   int incy = 1;
-  int n = size;
+  int n = (int) size;
   double alpha = 1;
   daxpy_(&n, &alpha, x, &incx, y, &incy);
   return true;
@@ -101,7 +101,7 @@ bool lapack_chol(double *A, int ncols) {
   int info;         // store result;
   dpotrf_(&uplo, &n, A, &lda, &info);
   if (info != 0) {
-    fprintf(stderr, "matrix is not positive definite!\n");
+    fprintf(stderr, "matrix is not positive definite!, info is: %zi\n", info);
     exit(-1);
   }
   return true;

@@ -30,7 +30,7 @@ void col_to_row_major(double *A, double *B, size_t num_rows, size_t num_cols);
  * @param ncols the number of columns of A allocated
  * @param urows the number of rows of A used.
  */
-bool lapack_daxpy(int size, double *x, double *y);
+bool lapack_daxpy(size_t size, double *x, double *y);
 
 /** Run a LAPACK Cholesky
  * @param A the matrix in lower triangular form

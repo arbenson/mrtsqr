@@ -28,7 +28,6 @@ void MatrixHandler::read_full_row(std::vector<double>& row) {
     in_.read_byte_sequence((unsigned char *) &row[0], len);
     break;
   case TypedBytesList:
-    hadoop_message("TypedBytesList!\n");
     nexttype = in_.next_type();
     while (nexttype != TypedBytesListEnd) {
       if (in_.can_be_double(nexttype)) {

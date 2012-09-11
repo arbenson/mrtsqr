@@ -59,7 +59,7 @@ void handle_indirect_tsqr(int argc, char **argv) {
   map.mapper();
 }
 
-void handle_cholesky_tsqr(int argc, char **argv) {
+void handle_cholesky_AtA(int argc, char **argv) {
   fprintf(stderr, "using Cholesky TSQR\n");
   // create typed bytes files
   TypedBytesInFile in(stdin);
@@ -77,6 +77,34 @@ void handle_cholesky_tsqr(int argc, char **argv) {
   map.mapper();
 }
 
+void handle_cholesky_rowsum(int argc, char **argv) {
+  fprintf(stderr, "using Cholesky TSQR\n");
+  // create typed bytes files
+  TypedBytesInFile in(stdin);
+  TypedBytesOutFile out(stdout);
+
+  size_t rows_per_record = 1;
+  if (argc > 0)
+    rows_per_record = atoi(argv[0]);
+
+  RowSum map(in, out, rows_per_record);
+  map.mapper();
+}
+
+void handle_cholesky_comp(int argc, char **argv) {
+  fprintf(stderr, "using Cholesky TSQR\n");
+  // create typed bytes files
+  TypedBytesInFile in(stdin);
+  TypedBytesOutFile out(stdout);
+
+  size_t rows_per_record = 1;
+  if (argc > 0)
+    rows_per_record = atoi(argv[0]);
+
+  Cholesky map(in, out, rows_per_record);
+  map.mapper();
+}
+
 int main(int argc, char **argv) {  
   // initialize the random number generator
   unsigned long seed = sf_randseed();
@@ -91,8 +119,12 @@ int main(int argc, char **argv) {
     handle_direct_tsqr(argc - 2, argv + 2);
   } else if (!strcmp(argv[1], "indirect")) {
     handle_indirect_tsqr(argc - 2, argv + 2);
+  } else if (!strcmp(argv[1], "ata")) {
+    handle_cholesky_AtA(argc - 2, argv + 2);
+  } else if (!strcmp(argv[1], "rowsum")) {
+    handle_cholesky_rowsum(argc - 2, argv + 2);
   } else if (!strcmp(argv[1], "cholesky")) {
-    handle_cholesky_tsqr(argc - 2, argv + 2);
+    handle_cholesky_comp(argc - 2, argv + 2);
   } else {
     fprintf(stderr, "unknown method!\n");
     return -1;

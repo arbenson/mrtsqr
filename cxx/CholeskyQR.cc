@@ -5,73 +5,6 @@
 #include "sparfun_util.h"
 #include "tsqr_util.h"
 
-int Cholesky::read_key() {
-  TypedBytesType type = in_.next_type();
-  if (type != TypedBytesInteger) {
-    hadoop_message("invalid key, TypedBytes code: %d (skipping) \n", type);
-    in_.skip_next();
-    return -1;
-  }
-  return in_.read_int();
-}
-  
-void Cholesky::first_row() {
-  int row_index = read_key();
-  std::vector<double> row;
-  read_full_row(row);
-  num_cols_ = row.size();
-  rows_.resize(num_cols_);
-  for (int i = 0; i < (int) num_cols_; ++i) {
-    rows_[i] = NULL;
-  }
-  assert(row_index < (int)num_cols_);
-  hadoop_message("matrix size: %zi num_cols_, up to %i localrows\n", 
-		 num_cols_, blocksize_ * num_cols_);
-  add_row(row, row_index);
-}
-
-void Cholesky::add_row(const std::vector<double>& row, int row_index) {
-  double *new_row = (double *) malloc(num_cols_ * sizeof(double));
-  for (int i = 0; i < (int) num_cols_; ++i) {
-    new_row[i] = row[i];
-  }
-  rows_[row_index] = new_row;
-}
-  
-void Cholesky::output() {
-  int dim = (int) num_cols_;
-  double *A = (double *) malloc(dim * dim * sizeof(double));
-  assert(A);
-  // copy matrix and check that all rows were filled
-  for (int i = 0; i < dim; ++i) {
-    double *curr_row = rows_[i];
-    assert(curr_row);
-    for (int j = 0; j < dim; ++j) {
-      A[i * dim + j] = curr_row[j];
-    }
-    free(curr_row);
-  }
-
-  // call Cholesky once
-  double t0 = sf_time();
-  lapack_chol(A, dim);
-  double dt = sf_time() - t0;
-  hadoop_counter("lapack time (millisecs)", (int) (dt * 1000.));
-
-  for (int i = 0; i < dim; ++i) {
-    out_.write_int(i);
-    out_.write_list_start();
-    for (int j = 0; j < dim; ++j) {
-      if (j <= i) {
-	out_.write_double(A[i * dim + j]);
-      } else {
-	out_.write_double(0.0);
-      }
-    }
-    out_.write_list_end();
-  }
-}
-
 void AtA::collect(typedbytes_opaque& key, std::vector<double>& value) {
   add_row(value);
   if (num_local_rows_ >= num_rows_) {
@@ -82,14 +15,13 @@ void AtA::collect(typedbytes_opaque& key, std::vector<double>& value) {
 
 void AtA::compress() {
   double t0 = sf_time();
-  if (!local_AtA_) {
-    local_AtA_ = (double *)calloc(num_cols_ * num_cols_, sizeof(double));
+  if (local_AtA_ == NULL) {
+    local_AtA_ = (double *) calloc(num_cols_ * num_cols_, sizeof(double));
     assert(local_AtA_);
   }
   if (lapack_syrk(&local_matrix_[0], local_AtA_, num_rows_, num_cols_,
 		  num_local_rows_)) {
-    double dt = sf_time() - t0;
-    hadoop_counter("lapack time (millisecs)", (int) (dt * 1000.));
+    incr_lapack_time(sf_time() - t0);
   } else {
     hadoop_error("lapack error\n");
   }
@@ -100,78 +32,102 @@ void AtA::output() {
   for (size_t i = 0; i < num_cols_; ++i) {
     out_.write_int(i);
     out_.write_list_start();
-    for (size_t j = 0; j < num_cols_; ++j) {
+    for (size_t j = 0; j < num_cols_; ++j)
       out_.write_double(local_AtA_[i + j * num_rows_]);
-    }
     out_.write_list_end();
   }
 }
 
-int RowSum::read_key() {
+bool RowSum::read_key_val_pair(int *key, std::vector<double>& value) {
   TypedBytesType type = in_.next_type();
   if (type != TypedBytesInteger) {
-    hadoop_message("invalid key, TypedBytes code: %d (skipping) \n",type);
+    hadoop_message("invalid key, TypedBytes code: %d (skipping) \n", type);
     in_.skip_next();
-    return -1;
+    return false;
   }
-  return in_.read_int();
+  *key = in_.read_int();
+  read_full_row(value); 
+  return true;
 }
-    
-void RowSum::first_row() {
-  int row_index = read_key();
+
+void RowSum::mapper() {
   std::vector<double> row;
-  read_full_row(row);
+  first_row();
+  while (!feof(in_.get_stream())) {
+    int key = -1;
+    if (!read_key_val_pair(&key, row)) {
+      if (feof(in_.get_stream())) {
+	break;
+      } else {
+	hadoop_error("invalid key: row %i\n", num_total_rows_);
+      }
+    }
+    collect_int_key(key, row);
+  }
+  hadoop_status("final output");
+  output();
+}
+
+void RowSum::first_row() {
+  int row_index = -1;
+  std::vector<double> row;
+  read_key_val_pair(&row_index, row);
   num_cols_ = row.size();
   rows_.resize(num_cols_);
   used_.resize(num_cols_);
   assert(row_index < (int) num_cols_);
   for (int i = 0; i < (int) num_cols_; ++i) {
-    rows_[i] = NULL;
+    rows_[i] = (double *) calloc(num_cols_, sizeof(double));
     used_[i] = false;
   }
-  hadoop_message("matrix size: %zi num_cols_, up to %i localrows\n", 
-		 num_cols_, blocksize_ * num_cols_);
-  add_row(row, row_index);
+  hadoop_message("matrix size: %zi columns\n", num_cols_);
+  collect_int_key(row_index, row);
 }
     
-void RowSum::add_row(const std::vector<double>& row, int row_index) {
-  assert(row.size() == num_cols_);
-  if(used_[row_index]) {
-    double *curr_row = rows_[row_index];
-    double t0 = sf_time();
-    lapack_daxpy((int)num_cols_, curr_row, (double *) &row[0]);
-    double dt = sf_time() - t0;
-    hadoop_counter("lapack time (millisecs)", (int)(dt * 1000.));
-  } else {
-    double *new_row = (double *) malloc(num_cols_ * sizeof(double));
-    for (int i = 0; i < (int)num_cols_; ++i) {
-      new_row[i] = row[i];
-    }
-    rows_[row_index] = new_row;
-    used_[row_index] = true;
-  }
-}
-
-void RowSum::collect(typedbytes_opaque& key, std::vector<double>& value) {
-  int key_converted = 0;
-  key_converted = ((int) key[0] << 24) | ((int) key[1] << 16) |
-    ((int) key[2] << 8) | ((int) key[3]);
-  add_row(value, (int) key_converted);
+void RowSum::collect_int_key(int key, std::vector<double>& value) {
+  assert(value.size() == num_cols_);
+  assert((size_t) key < num_cols_);
+  used_[key] = true;
+  double t0 = sf_time();
+  lapack_daxpy(num_cols_, rows_[key], &value[0]);
+  incr_lapack_time(sf_time() - t0);
 }
 
 void RowSum::output() {
-  assert(rows_.size() == used_.size());
-  int num_rows_ = (int)rows_.size();
-  for (int i = 0; i < num_rows_; ++i) {
-    if (used_[i]) {
-      out_.write_int(i);
-      out_.write_list_start();
-      double *curr_row = rows_[i];
-      for (size_t j = 0; j < num_cols_; ++j) {
-	out_.write_double(curr_row[j]);
-      }
-      out_.write_list_end();
-      free(curr_row);
-    }
+  for (size_t i = 0; i < rows_.size(); ++i) {
+    if (!used_[i])
+      continue;
+    out_.write_int(i);
+    out_.write_list_start();
+    for (size_t j = 0; j < num_cols_; ++j)
+      out_.write_double(rows_[i][j]);
+    out_.write_list_end();
+  }
+}
+
+void Cholesky::output() {
+  // all data needs to be on this task
+  for (size_t i = 0; i < used_.size(); ++i)
+    assert(used_[i]);
+  double *mat = (double *) malloc(num_cols_ * num_cols_ * sizeof(double));
+  assert(mat);
+
+  for (size_t i = 0; i < num_cols_; ++i) {
+    double *curr_row = rows_[i];
+    for (size_t j = 0; j < num_cols_; ++j)
+      mat[i * num_cols_ + j] = curr_row[j];
+  }
+
+  // call Cholesky once
+  double t0 = sf_time();
+  lapack_chol(mat, (int) num_cols_);
+  incr_lapack_time(sf_time() - t0);
+
+  for (size_t i = 0; i < num_cols_; ++i) {
+    out_.write_int(i);
+    out_.write_list_start();
+    for (size_t j = 0; j < num_cols_; ++j)
+      out_.write_double(j <=i ? mat[i * num_cols_ + j] : 0.0);
+    out_.write_list_end();
   }
 }
