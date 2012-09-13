@@ -47,7 +47,7 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output','%s-arinv%s' % (matname, matext))    
+        prog.addopt('output','%s-matmul%s' % (matname, matext))    
     
     gopts.getintkey('blocksize', 50)
     gopts.getstrkey('reduce_schedule', '1')
