@@ -47,7 +47,12 @@ def starter(prog):
     prog.addopt('file', os.path.join(os.path.dirname(__file__), q2path))
     gopts.getstrkey('q2path', q2path)
 
-    gopts.getstrkey('upath', '')
+    upath = prog.delopt('upath')
+    if upath:
+      prog.addopt('file', os.path.join(os.path.dirname(__file__), upath))
+    else:
+      upath = ''
+    gopts.getstrkey('upath', upath)
     
     gopts.save_params()
 

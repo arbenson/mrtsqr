@@ -179,11 +179,11 @@ class FullTSQRMap3(dumbo.backends.common.MapRedBase):
         self.ncols = ncols
         self.q2path = q2path
         self.u_data = None
-        if self.upath is not None:
+        if upath is not None:
           self.u_data = []
           for row in util.parse_matrix_txt(upath):
             self.u_data.append(row)
-          self.u_data = numpy.mat(u_data)
+          self.u_data = numpy.mat(self.u_data)
 
     def parse_q2(self):
         try:
