@@ -48,14 +48,11 @@ parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
                        + ' the three jobs')
 parser.add_option('-H', '--hadoop', dest='hadoop', default='',
                   help='name of hadoop for Dumbo')
-
-# TODO(arbenson): add option that computes singular vectors but not the Q in
-# QR.  This will be the go-to option for computing the SVD of a
-# tall-and-skinny matrix.
 parser.add_option('-x', '--svd', type='int', dest='svd', default=0,
-                  help="""0: no SVD computed ;
-1: compute the singular values (R = USV^t) ;
-2: compute the singular vectors as well as QR
+                  help="""0: no SVD computed;
+1: compute the singular values (R = USV^t);
+2: compute the singular vectors as well as QR;
+3: compute the SVD but not the QR factorization
 """
 )
 parser.add_option('-q', '--quiet', action='store_false', dest='verbose',
@@ -122,14 +119,7 @@ if os.path.exists(Q2_file + '.out'):
 cm.copy_from_hdfs(out2 + '/Q2', Q2_file)
 cm.parse_seq_file(Q2_file)
 
-in3 = out1 + '/Q_*'
-cm.run_dumbo('full3.py', hadoop, ['-mat ' + in3, '-output ' + out + '_3',
-                                  '-ncols ' + str(ncols),
-                                  '-q2path ' + Q2_file + '.out',
-                                  '-nummaptasks %d' % sched[2],
-                                  '-libjar feathers.jar'])
-
-if svd_opt == 2:
+if svd_opt in [2, 3]:
   small_U_file = out_file('U.txt')
 
   if os.path.exists(small_U_file):
@@ -140,12 +130,21 @@ if svd_opt == 2:
   cm.copy_from_hdfs(out2 + '/U', small_U_file)
   cm.parse_seq_file(small_U_file)
 
+in3 = out1 + '/Q_*'
+opts = ['-mat ' + in3, '-output ' + out + '_3', '-ncols ' + str(ncols),
+        '-q2path ' + Q2_file + '.out', '-nummaptasks %d' % sched[2],
+        '-libjar feathers.jar']
+if svd_opt == 3:
+  opts += ['-upath ' + small_U_file + '.out']
+cm.run_dumbo('full3.py', hadoop, opts)
+
+if svd_opt == 2:
   # We need an addition TS matrix multiply to get the left singular vectors
   out4 = out + '_4'
 
-  cm.run_dumbo ('TSMatMul.py', hadoop, ['-mat ' + out + '_3', '-output ' + out4,
-                                        '-mpath ' + small_U_file + '.out',
-                                        '-nummaptasks %d' % sched[2]])
+  cm.run_dumbo('TSMatMul.py', hadoop, ['-mat ' + out + '_3', '-output ' + out4,
+                                       '-mpath ' + small_U_file + '.out',
+                                       '-nummaptasks %d' % sched[2]])
 
 try:
   f = open(times_out, 'a')

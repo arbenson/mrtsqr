@@ -19,10 +19,13 @@ gopts = util.GlobalOptions()
 
 def runner(job):
     q2path = gopts.getstrkey('q2path')
+    upath = gopts.getstrkey('upath')
+    if upath == '':
+      upath = None
     ncols = gopts.getintkey('ncols')
-    mapper = full.FullTSQRMap3(q2path,ncols)
+    mapper = full.FullTSQRMap3(ncols, q2path, upath)
     reducer = mrmc.ID_REDUCER
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
+    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks', '0')])
 
 def starter(prog):
     # set the global opts
@@ -42,11 +45,11 @@ def starter(prog):
     if not q2path:
         return "'q2path' not specified"
     prog.addopt('file', os.path.join(os.path.dirname(__file__), q2path))
-
     gopts.getstrkey('q2path', q2path)
+
+    gopts.getstrkey('upath', '')
     
     gopts.save_params()
 
 if __name__ == '__main__':
     dumbo.main(runner, starter)
-
