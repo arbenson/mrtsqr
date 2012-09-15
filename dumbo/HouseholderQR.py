@@ -142,46 +142,7 @@ class HouseholderMap1(mrmc.MatrixHandler):
     for key, val in self.flush(last_flush=True):
       yield key, val
 
-class HouseholderRed2(dumbo.backends.common.MapRedBase):
-  def __init__(self, step, info_file):
-    if step == 0:
-      self.picked_set = []
-    else:
-      self.picked_set, _, _, _ = parse_info(info_file)
-    self.picked = None
-    self.alpha = None
-    self.norm = 0.0
-
-  def collect(self, key, value, picked_possibility=False):
-    if picked_possibility:
-      if self.picked is None:
-        self.picked = key
-        self.alpha = value
-      self.norm += value * value
-    else:
-      self.norm += value
-    
-  def close(self):
-    beta = math.sqrt(self.norm)
-    beta = float(-1.0) * math.copysign(beta, self.alpha)
-    tau = (beta - self.alpha) / beta
-    sigma = float(1.0) / (self.alpha - beta)
-    self.alpha = beta
-    self.picked_set.append(self.picked)
-    yield 'picked_set', self.picked_set
-    yield 'alpha', self.alpha
-    yield 'tau', tau
-    yield 'sigma', sigma
-
-  def __call__(self, data):
-    for key, values in data:
-      for value in values:
-        self.collect(key, float(value[0]), len(value) == 2)
-
-    for key, val in self.close():
-      yield key, val
-
-class HouseholderMap3(mrmc.MatrixHandler):
+class HouseholderMap2(mrmc.MatrixHandler):
   def __init__(self, step, info_file):
     mrmc.MatrixHandler.__init__(self)
     self.output_vals = {}
@@ -229,7 +190,7 @@ class HouseholderMap3(mrmc.MatrixHandler):
     for key, val in self.close():
       yield key, val
     
-class HouseholderRed3(dumbo.backends.common.MapRedBase):
+class HouseholderRed2(dumbo.backends.common.MapRedBase):
   def __init__(self):
     pass
 
