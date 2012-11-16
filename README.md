@@ -13,23 +13,28 @@ many problems.  Probably the most famous is linear regression:
 where _A_ is an _m-by-n_ matrix, and _b_ is an _m-by-1_ vector.
 When the number of rows of the matrix _A_ is much larger than
 the number of columns, then _A_ is called a _tall-and-skinny_
-matrix because of its shape.  
+matrix because of its shape.
 
-The MrTSQR codes implement a routine to compute a QR factorization
-of a tall-and-skinny matrix using Hadoop's implementation of the
-MapReduce computational platform.  The underlying
-algorithm for this implementation is due to Demmel et al. .
+The MapReduce codes implement several routines for computing the QR
+factorization of a tall-and-skinny matrix.  We offer:
 
-Most codes are written in Python, and use the NumPy library
+* Cholesky QR
+* Direct TSQR (compute Q and R stably)
+* Indirect TSQR (compute only R or also compute Q = AR^{-1})
+
+We also implement Householder QR for performance comparisons only.  The other
+algorithms are superior.  The underlying algorithm for Direct and Indirect
+TSQR is due to Demmel et al. .  We also provide a few basic computations:
+
+* B^T*A
+* A*B for A tall-and-skinny and B small and square
+
+Most codes are written in Python and use the NumPy library
 for the numerical routines.  This introduces a mild-ineffiency
-into the code, which we explore by studying three different 
-packages to use Hadoop with Python: dumbo, pydoop, and hadoopy.
-The feathers library, which supplements dumbo, is used for the
-full TSQR computation.
-Some C++ implementations are also provided in the `mrtsqr/cxx` directory.
+into the code.  Some C++ implementations are also provided in the 
+`mrtsqr/cxx` directory.
 
-This package describes the code and experiments used in the paper
-by Constantine and Gleich:
+The original paper by Constantine and Gleich is available at:
 
 * Tall and skinny QR factorizations in MapReduce architectures [[pdf](http://www.cs.purdue.edu/homes/dgleich/publications/Constantine%202011%20-%20TSQR.pdf)]
 
@@ -61,9 +66,16 @@ at other stages, there are a few things you must do.
 * dumbo is installed and working
 * numpy is installed and working
 * hadoop is installed and working
-* feathers is installed and working for FullTSQR (optional) 
+* feathers is installed and working for Direct TSQR
 
 ### Example
+
+    # Run direct tsqr:
+     python run_direct_tsqr.py --input=A_800M_10.bseq \
+            --ncols=10 --svd=2 --schedule=100,100,100 \
+            --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
+            --output=DIRTSQR_TESTING
+
 
     # Load all the paths.  You should update this for your setup.
     # This example only needs HADOOP_INSTALL set
@@ -79,9 +91,7 @@ at other stages, there are a few things you must do.
     # Look at the matrix in HDFS
     dumbo cat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
         
-    #    
     # Compute it's QR factorization
-    #
     
     dumbo start dumbo/tsqr.py -mat tsqr/verytiny.tmat -use_system_numpy
     
@@ -90,33 +100,15 @@ at other stages, there are a few things you must do.
     # compute nodes don't have numpy installed, so I ship
     # an egg with the streaming job to give them numpy.
     
-    #
-    # Look at the R in the QR
-    #
+    # Look at the R in the QR:
     
     dumbo cat tsqr/verytiny-qrr.mseq -hadoop $HADOOP_INSTALL
 
 Overview
 --------
 
-* `dumbo/tsqr.py` - the tsqr function for dumbo
-* `hadoopy/tsqr.py` - the tsqr code for hadoopy
+* `dumbo/run_dirtsqr.py` - driver code for direct tsqr
+* `dumbo/run_tsqr_ir.py` - driver code for direct tsqr with iterative refinement
+* `dumbo/tsqr.py` - the indirect tsqr function for dumbo
 * `cxx/tsqr.cc` - the tsqr code using C++
 * `cxx/typedbytes.h` - the header file for the C++ typedbytes library
-* `java/org.../FixedLengthRecordReader.java` - a record reader based on
-  MapReduce 1176 Jira
-* `experiments/tinyimages/ti_regress.py` - Code for least-squares regression
-  using a TSQR  
-
-Figures and Tables
--------------------
-
-* `experiments/framework` - Table 2
-* `experiments/blocksize` - Table 3
-* `experiments/splitsize` - Table 4
-* `experiments/tinyimages` - Regression Side-fig and Figure 5
-* - Main file: `ti_pca.py` and `ti_regress.py`
-* - Extraction files: `pca_svd.py` and `regression_output.py`
-* - Plotting files: `plot_pc.m` and `plot_regress.m`
-
-
