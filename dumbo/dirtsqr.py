@@ -1,7 +1,7 @@
 #!/usr/bin/env dumbo
 
 """
-Full mrtsqr
+Direct MapReduce TSQR
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
@@ -25,7 +25,7 @@ import dumbo.backends.common
 from dumbo import opt
 
 """
-FullTSQRMap1
+DirTSQRMap1
 --------------
 
 Input: <key, value> pairs representing <row id, row> in the matrix A
@@ -35,7 +35,7 @@ Output:
   2. Q matrix: <mapper id, row + [row_id]>
 """
 @opt("getpath", "yes")
-class FullTSQRMap1(mrmc.MatrixHandler):
+class DirTSQRMap1(mrmc.MatrixHandler):
     def __init__(self):
         mrmc.MatrixHandler.__init__(self)
         self.keys = []
@@ -81,7 +81,7 @@ class FullTSQRMap1(mrmc.MatrixHandler):
 
 
 """
-FullTSQRRed2
+DirTSQRRed2
 ------------
 
 Takes all of the intermediate Rs
@@ -98,7 +98,7 @@ Each key corresponds to a mapperid from stage 1 and that keys value is the
 Q2 matrix corresponding to that mapper_id
 """
 @opt("getpath", "yes")
-class FullTSQRRed2(dumbo.backends.common.MapRedBase):
+class DirTSQRRed2(dumbo.backends.common.MapRedBase):
     def __init__(self, compute_svd=False):
         self.R_data = {}
         self.key_order = []
@@ -162,7 +162,7 @@ class FullTSQRRed2(dumbo.backends.common.MapRedBase):
 
 
 """
-FullTSQRMap3
+DirTSQRMap3
 ------------
 
 input: Q1 as <mapper_id, [row] + [row_id]>
@@ -170,7 +170,7 @@ input: Q2 comes attached as a text file, which is then parsed on the fly
 
 output: Q as <row_id, row>
 """
-class FullTSQRMap3(dumbo.backends.common.MapRedBase):
+class DirTSQRMap3(dumbo.backends.common.MapRedBase):
     def __init__(self,ncols,q2path='q2.txt',upath=None):
         # TODO implement this
         self.Q1_data = {}

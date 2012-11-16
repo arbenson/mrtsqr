@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
 """
-This is a script to run the Full TSQR algorithm with direct computation
+This is a script to run the Direct TSQR algorithm with direct computation
 of the matrix Q.
 
 See options:
-     python run_full_tsqr.py --help
+     python run_direct_tsqr.py --help
 
 Example usage:
-     python run_full_tsqr.py --input=A_800M_10.bseq \
+     python run_direct_tsqr.py --input=A_800M_10.bseq \
             --ncols=10 --svd=2 --schedule=100,100,100 \
             --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
-            --output=FULL_TESTING
+            --output=DIRTSQR_TESTING
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 
@@ -37,7 +37,7 @@ parser.add_option('-i', '--input', dest='input', default='',
                   help='input matrix')
 parser.add_option('-o', '--output', dest='out', default='',
                   help='base string for output of Hadoop jobs')
-parser.add_option('-l', '--local_output', dest='local_out', default='full_out_tmp',
+parser.add_option('-l', '--local_output', dest='local_out', default='direct_out_tmp',
                   help='Base directory for placing local files')
 parser.add_option('-t', '--times_output', dest='times_out', default='times',
                   help='file for storing command times')
@@ -69,7 +69,7 @@ if in1 == '':
 out = options.out
 if out == '':
   # TODO(arbenson): make sure in1 is clean
-  out = in1 + '_FULL'
+  out = in1 + '_DIRECT'
 
 local_out = options.local_out
 out_file = lambda f: local_out + '/' + f
@@ -97,15 +97,15 @@ hadoop = options.hadoop
 
 # Now run the MapReduce jobs
 out1 = out + '_1'
-cm.run_dumbo('full1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
-                                  '-nummaptasks %d' % sched[0],
-                                  '-libjar feathers.jar'])
+cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
+                                     '-nummaptasks %d' % sched[0],
+                                     '-libjar feathers.jar'])
 
 out2 = out + '_2'
-cm.run_dumbo('full2.py', hadoop, ['-mat ' + out1 + '/R_*', '-output ' + out2,
-                                  '-svd ' + str(svd_opt),
-                                  '-nummaptasks %d' % sched[1],
-                                  '-libjar feathers.jar'])
+cm.run_dumbo('dirtsqr2.py', hadoop, ['-mat ' + out1 + '/R_*', '-output ' + out2,
+                                     '-svd ' + str(svd_opt),
+                                     '-nummaptasks %d' % sched[1],
+                                     '-libjar feathers.jar'])
 
 # Q2 file needs parsing before being distributed to phase 3
 Q2_file = out_file('Q2.txt')
@@ -136,7 +136,7 @@ opts = ['-mat ' + in3, '-output ' + out + '_3', '-ncols ' + str(ncols),
         '-libjar feathers.jar']
 if svd_opt == 3:
   opts += ['-upath ' + small_U_file + '.out']
-cm.run_dumbo('full3.py', hadoop, opts)
+cm.run_dumbo('dirtsqr3.py', hadoop, opts)
 
 if svd_opt == 2:
   # We need an addition TS matrix multiply to get the left singular vectors

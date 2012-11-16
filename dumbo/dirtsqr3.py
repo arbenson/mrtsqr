@@ -1,7 +1,7 @@
 #!/usr/bin/env dumbo
 
 """
-Full TSQR algorithm for MapReduce (part 2)
+Direct TSQR algorithm for MapReduce (part 3)
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
@@ -12,7 +12,7 @@ import mrmc
 import dumbo
 import util
 import os
-import full
+import dirtsqr
 
 # create the global options structure
 gopts = util.GlobalOptions()
@@ -23,7 +23,7 @@ def runner(job):
     if upath == '':
       upath = None
     ncols = gopts.getintkey('ncols')
-    mapper = full.FullTSQRMap3(ncols, q2path, upath)
+    mapper = dirtsqr.DirTSQRMap3(ncols, q2path, upath)
     reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks', '0')])
 
@@ -37,7 +37,7 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output','%s-full-tsqr-3%s'%(matname,matext))
+        prog.addopt('output','%s-dirtsqr-3%s'%(matname,matext))
     
     gopts.getintkey('ncols', 10)
 

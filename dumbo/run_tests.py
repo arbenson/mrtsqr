@@ -270,7 +270,7 @@ def BtA_test():
   cm.parse_seq_file(result_out_mseq, result_out_txt)
   return check_diag_ones(result_out_txt, ncols)
 
-# TODO(arbenson): Add tests for run_full_tsqr.py and run_tsqr_ir.py.
+# TODO(arbenson): Add tests for run_dirtsqr.py and run_tsqr_ir.py.
 tests = {'TSMatMul':        TSMatMul_test,
          'ARInv':           ARInv_test,
          'tsqr':            tsqr_test,

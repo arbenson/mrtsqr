@@ -5,7 +5,7 @@ This is a script to run the TSQR with one step of iterative refinement to
 compute Q.
 
 See options:
-     python run_full_tsqr.py --help
+     python run_tsqr_ir.py --help
 
 Example usage:
 

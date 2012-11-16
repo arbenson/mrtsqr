@@ -1,7 +1,7 @@
 #!/usr/bin/env dumbo
 
 """
-Householder algorithm driver for MapReduce (part 1)
+Householder algorithm driver for MapReduce (part 3)
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
@@ -34,7 +34,7 @@ def starter(prog):
     # set the global opts
     gopts.prog = prog
 
-    mat = mrmc.starter_helper(prog, use_full=False, use_house=True)
+    mat = mrmc.starter_helper(prog, use_dirtsqr=False, use_house=True)
     if not mat: return "'mat' not specified"
 
     matname,matext = os.path.splitext(mat)

@@ -34,7 +34,7 @@ class DataFormatException(Exception):
         return repr(self.value)
 
 
-def starter_helper(prog, use_full=False, use_house=False):
+def starter_helper(prog, use_dirtsqr=False, use_house=False):
     print 'running starter!'
 
     mypath = os.path.dirname(__file__)
@@ -42,8 +42,8 @@ def starter_helper(prog, use_full=False, use_house=False):
 
     prog.addopt('file', os.path.join(mypath, 'util.py'))
     prog.addopt('file', os.path.join(mypath, 'mrmc.py'))
-    if use_full:
-        prog.addopt('file', os.path.join(mypath, 'full.py'))
+    if use_dirtsqr:
+        prog.addopt('file', os.path.join(mypath, 'dirtsqr.py'))
     if use_house:
         prog.addopt('file', os.path.join(mypath, 'HouseholderQR.py'))
 
