@@ -120,15 +120,15 @@ public:
   void output();
 };
 
-class FullTSQRMap1 : public MatrixHandler {
+class DirTSQRMap1 : public MatrixHandler {
 public:
-  FullTSQRMap1(TypedBytesInFile& in, TypedBytesOutFile& out,
+  DirTSQRMap1(TypedBytesInFile& in, TypedBytesOutFile& out,
                size_t rows_per_record)
     : MatrixHandler(in, out, -1, rows_per_record) {
     mapper_id_ = pseudo_uuid();
     num_cols_ = 0;
   }
-  virtual ~FullTSQRMap1() {}
+  virtual ~DirTSQRMap1() {}
 
   std::string pseudo_uuid();
   void first_row();
@@ -141,15 +141,15 @@ private:
   std::vector<double> row_accumulator_;
 };
 
-class FullTSQRReduce2: public MatrixHandler {
+class DirTSQRReduce2: public MatrixHandler {
 public:
-  FullTSQRReduce2(TypedBytesInFile& in, TypedBytesOutFile& out,
+  DirTSQRReduce2(TypedBytesInFile& in, TypedBytesOutFile& out,
                   size_t rows_per_record, size_t num_cols)
     : MatrixHandler(in, out, -1, rows_per_record) {
     num_cols_ = num_cols;
   }
 
-  virtual ~FullTSQRReduce2() {}
+  virtual ~DirTSQRReduce2() {}
   
   void first_row();
   void collect(typedbytes_opaque& key, std::vector<double>& value);
@@ -160,9 +160,9 @@ private:
   std::list<typedbytes_opaque> keys_;
 };
 
-class FullTSQRMap3: public MatrixHandler {
+class DirTSQRMap3: public MatrixHandler {
 public:
-  FullTSQRMap3(TypedBytesInFile& in, TypedBytesOutFile& out,
+  DirTSQRMap3(TypedBytesInFile& in, TypedBytesOutFile& out,
                size_t rows_per_record, size_t num_cols)
     : MatrixHandler(in, out, -1, rows_per_record_) {
     num_cols_ = num_cols;

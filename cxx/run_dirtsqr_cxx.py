@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 """
-This is a script to run the C++ implementation of the Full TSQR algorithm
+This is a script to run the C++ implementation of the Direct TSQR algorithm
 with direct computation of the matrix Q.
 
 See options:
-     python run_full_tsqr_cxx.py --help
+     python run_dirtsqr_cxx.py --help
 
 Example usage:
-     python run_full_tsqr_cxx.py --input=A_800M_10.bseq \
+     python run_dirtsqr_cxx.py --input=A_800M_10.bseq \
             --ncols=10 --schedule=100,100,100 \
-            --local_output=tsqr-tmp --output=FULL_TESTING
+            --local_output=tsqr-tmp --output=DIRTSQR_TESTING
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 
@@ -38,7 +38,7 @@ parser.add_option('-i', '--input', dest='input', default='',
                   help='input matrix')
 parser.add_option('-o', '--output', dest='out', default='',
                   help='base string for output of Hadoop jobs')
-parser.add_option('-l', '--local_output', dest='local_out', default='full_out_tmp',
+parser.add_option('-l', '--local_output', dest='local_out', default='dirtsqr_out_tmp',
                   help='Base directory for placing local files')
 parser.add_option('-t', '--times_output', dest='times_out', default='times',
                   help='Base directory for placing local files')
@@ -73,7 +73,7 @@ if in1 == '':
 out = options.out
 if out == '':
   # TODO(arbenson): make sure in1 is clean
-  out = in1 + '_FULL'
+  out = in1 + '_DIRTSQR'
 
 local_out = options.local_out
 out_file = lambda f: local_out + '/' + f

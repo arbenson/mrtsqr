@@ -28,15 +28,15 @@ void handle_direct_tsqr(int argc, char **argv) {
 
   // TODO(arbenson): handle rows per record
   if (stage == 1) {
-    FullTSQRMap1 map(in, out, 1);
+    DirTSQRMap1 map(in, out, 1);
     map.mapper();
   } else if (stage == 2) {
     size_t ncols = atoi(argv[1]);
-    FullTSQRReduce2 map(in, out, 1, ncols);
+    DirTSQRReduce2 map(in, out, 1, ncols);
     map.mapper();
   } else if (stage == 3) {
     size_t ncols = atoi(argv[1]);
-    FullTSQRMap3 map(in, out, 1, ncols);
+    DirTSQRMap3 map(in, out, 1, ncols);
     map.mapper();
   }
 }

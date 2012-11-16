@@ -194,7 +194,6 @@ bool lapack_qr(double* A, size_t nrows, size_t ncols, size_t urows) {
  * the size
  */
 bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t urows) {
-  hadoop_message("LAPACK FULL\n");
   size_t minsize = std::min(urows, ncols);
   std::vector<double> tau(minsize);
   if (!_lapack_qr(A, nrows, ncols, urows, tau)) {
@@ -232,7 +231,6 @@ bool lapack_full_qr(double *A, double *R, size_t nrows, size_t ncols, size_t uro
     return false;
   }
 
-  hadoop_message("LAPACK FULL success!\n");
   return true;
 }
 

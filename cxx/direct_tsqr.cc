@@ -9,7 +9,7 @@
 #include "tsqr_util.h"
 #include "typedbytes.h"
 
-std::string FullTSQRMap1::pseudo_uuid() {
+std::string DirTSQRMap1::pseudo_uuid() {
   char buf[32];
   snprintf(buf, sizeof(buf), "%x%x%x%x",
 	   (unsigned int) sf_randint(0, 2000000000),
@@ -20,7 +20,7 @@ std::string FullTSQRMap1::pseudo_uuid() {
   return uuid;
 }
  
-void FullTSQRMap1::first_row() {
+void DirTSQRMap1::first_row() {
   typedbytes_opaque key;
   std::vector<double> row;
   read_key_val_pair(key, row);
@@ -29,7 +29,7 @@ void FullTSQRMap1::first_row() {
   collect(key, row);
 }
 
-void FullTSQRMap1::collect(typedbytes_opaque& key, std::vector<double>& value) {
+void DirTSQRMap1::collect(typedbytes_opaque& key, std::vector<double>& value) {
   keys_.push_back(key);
   for (size_t i = 0; i < value.size(); ++i) {
     row_accumulator_.push_back(value[i]);
@@ -37,7 +37,7 @@ void FullTSQRMap1::collect(typedbytes_opaque& key, std::vector<double>& value) {
   ++num_rows_;
 }
 
-void FullTSQRMap1::output() {
+void DirTSQRMap1::output() {
   // num_cols_ is 0 if the task did not receive any data
   if (num_cols_ == 0) {
     return;
@@ -119,7 +119,7 @@ void FullTSQRMap1::output() {
   out_.write_list_end();
 }
 
-void FullTSQRReduce2::first_row() {
+void DirTSQRReduce2::first_row() {
   hadoop_message("reading first row!\n");
   typedbytes_opaque key;
   std::vector<double> row;
@@ -128,7 +128,7 @@ void FullTSQRReduce2::first_row() {
   collect(key, row);
 }
 
-void FullTSQRReduce2::collect(typedbytes_opaque& key, std::vector<double>& value) {
+void DirTSQRReduce2::collect(typedbytes_opaque& key, std::vector<double>& value) {
   keys_.push_back(key);
   for (size_t i = 0; i < value.size(); ++i) {
     row_accumulator_.push_back(value[i]);
@@ -136,7 +136,7 @@ void FullTSQRReduce2::collect(typedbytes_opaque& key, std::vector<double>& value
   num_rows_ += num_cols_;
 }
 
-void FullTSQRReduce2::output() {
+void DirTSQRReduce2::output() {
   // Storage for R
   double *R_matrix = (double *) malloc(num_cols_ * num_cols_ * sizeof(double));
   assert(R_matrix);
@@ -186,7 +186,7 @@ void FullTSQRReduce2::output() {
   }
 }
 
-bool FullTSQRMap3::read_key_val_pair(typedbytes_opaque& key,
+bool DirTSQRMap3::read_key_val_pair(typedbytes_opaque& key,
                                      std::vector<double>& value,
                                      std::list<typedbytes_opaque>& key_list) {
   if (!in_.read_opaque(key)) {
@@ -230,14 +230,14 @@ bool FullTSQRMap3::read_key_val_pair(typedbytes_opaque& key,
   return true;
 }
 
-void FullTSQRMap3::collect(typedbytes_opaque& key, std::vector<double>& value,
+void DirTSQRMap3::collect(typedbytes_opaque& key, std::vector<double>& value,
 			   std::list<typedbytes_opaque>& key_list) {
   std::string str_key((const char *) &key[0], key.size());
   Q_matrices_[str_key] = value;
   keys_[str_key] = key_list;
 }
 
-void FullTSQRMap3::mapper() {
+void DirTSQRMap3::mapper() {
   while (!feof(in_.get_stream())) {
     typedbytes_opaque key;
     std::vector<double> row;
@@ -255,7 +255,7 @@ void FullTSQRMap3::mapper() {
   output();
 }
 
-void FullTSQRMap3::output() {
+void DirTSQRMap3::output() {
   FILE *f = fopen(Q2_path_.c_str(), "r");
   assert(f);
   char b[262144];
@@ -307,7 +307,7 @@ void FullTSQRMap3::output() {
   }
 }
 
-void FullTSQRMap3::handle_matmul(std::string& key, std::vector<double>& Q2) {
+void DirTSQRMap3::handle_matmul(std::string& key, std::vector<double>& Q2) {
   std::map<std::string, std::vector<double>>::iterator Q_it =
     Q_matrices_.find(key);
   assert(Q_it != Q_matrices_.end());
