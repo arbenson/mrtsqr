@@ -1,9 +1,7 @@
 MapReduce Matrix Computations
 ======
 
-### David F. Gleich
-### Paul G. Constantine
-### Austin R. Benson
+### David F. Gleich, Paul G. Constantine, Austin R. Benson, James Demmel
 
 The QR factorization is a standard matrix factorization used to solve
 many problems.  Probably the most famous is linear regression:
@@ -26,7 +24,7 @@ We also implement Householder QR for performance comparisons only.  The other
 algorithms are superior.  The underlying algorithm for Direct and Indirect
 TSQR is due to Demmel et al. .  We also provide a few basic computations:
 
-* B^T*A
+* B^T*A for B and A tall-and-skinny
 * A*B for A tall-and-skinny and B small and square
 
 Most codes are written in Python and use the NumPy library
@@ -38,12 +36,7 @@ The original paper by Constantine and Gleich is available at:
 
 * Tall and skinny QR factorizations in MapReduce architectures [[pdf](http://www.cs.purdue.edu/homes/dgleich/publications/Constantine%202011%20-%20TSQR.pdf)]
 
-This fork includes Austin's work on this project while at the
-University of California, Berkeley.  Part of the work was completed in
-part for Math 221: Advanced Matrix Computations (Prof. James Demmel) and
-CS C267: Applications of Parallel Computers (Prof. James Demmel and Prof. Kathy Yelick).
-
-Reports and posters can be found at the following places:
+Part of the work was completed in part for Math 221: Advanced Matrix Computations (Prof. James Demmel) and CS C267: Applications of Parallel Computers (Prof. James Demmel and Prof. Kathy Yelick) at UC-Berkeley.  Reports and posters can be found at the following places:
 
 * [Math 221 report](http://arbenson.github.com/portfolio/Math221/AustinBenson-math221-report.pdf) (Fall 2011)
 * [Math 221 poster](http://arbenson.github.com/portfolio/Math221/AustinBenson-math221-poster.pdf) (Fall 2011)
@@ -70,13 +63,6 @@ at other stages, there are a few things you must do.
 
 ### Example
 
-    # Run direct tsqr:
-     python run_direct_tsqr.py --input=A_800M_10.bseq \
-            --ncols=10 --svd=2 --schedule=100,100,100 \
-            --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
-            --output=DIRTSQR_TESTING
-
-
     # Load all the paths.  You should update this for your setup.
     # This example only needs HADOOP_INSTALL set
     source setup_env.sh
@@ -90,19 +76,30 @@ at other stages, there are a few things you must do.
     
     # Look at the matrix in HDFS
     dumbo cat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
+
+    # Compute Q and R stably with Direct TSQR:
+    python run_direct_tsqr.py --input=tsqr/verytiny.tmat \
+          --ncols=4 \
+          --svd=0 \
+          --hadoop=$HADOOP_INSTALL \
+          --local_output=tsqr-tmp \
+          --output=verytiny_qr
         
-    # Compute it's QR factorization
-    
-    dumbo start dumbo/tsqr.py -mat tsqr/verytiny.tmat -use_system_numpy
-    
-    # The -use_system_numpy option tells tsqr.py to 
-    # use the numpy on the system.  On my cluster, the
-    # compute nodes don't have numpy installed, so I ship
-    # an egg with the streaming job to give them numpy.
-    
-    # Look at the R in the QR:
-    
-    dumbo cat tsqr/verytiny-qrr.mseq -hadoop $HADOOP_INSTALL
+    # Compute Q and R stably and the singular values:
+    python run_direct_tsqr.py --input=tsqr/verytiny.tmat \
+          --ncols=4 \
+          --svd=1 \
+          --hadoop=$HADOOP_INSTALL \
+          --local_output=tsqr-tmp \
+          --output=verytiny_qr
+
+    # Compute the singular values and vectors, but do not form Q
+    python run_direct_tsqr.py --input=tsqr/verytiny.tmat \
+          --ncols=4 \
+          --svd=3 \
+          --hadoop=$HADOOP_INSTALL \
+          --local_output=tsqr-tmp \
+          --output=verytiny_qr
 
 Overview
 --------
