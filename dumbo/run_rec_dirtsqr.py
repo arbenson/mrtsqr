@@ -94,60 +94,45 @@ except:
 
 hadoop = options.hadoop
 
-run_recursive = True
 
-# Now run the MapReduce jobs
-out1 = out + '_1'
-cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
-                                     '-nummaptasks %d' % sched[0],
-                                     '-libjar feathers.jar'])
+R_labelled_out = out + '_R_LABELLED'
+if 0:
+  # Now run the MapReduce jobs
+  out1 = out + '_1'
+  cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
+                                       '-nummaptasks %d' % sched[0],
+                                       '-libjar feathers.jar'])
 
-sys.exit(0)
+  # Two step recursion
 
-out2 = out + '_2'
-cm.run_dumbo('dirtsqr2.py', hadoop, ['-mat ' + out1 + '/R_*', '-output ' + out2,
-                                     '-svd ' + str(svd_opt),
-                                     '-nummaptasks %d' % sched[1],
-                                     '-libjar feathers.jar'])
+  cm.run_dumbo('RLabeller.py', hadoop, ['-mat ' + out1 + '/R_*',
+                                        '-output ' + R_labelled_out])
 
-# Q2 file needs parsing before being distributed to phase 3
-Q2_file = out_file('Q2.txt')
+# Recursive step
+rec_out = 'RECURSIVE_DIRTSQR_TEST'
+cmd = 'python run_dirtsqr.py '
+cmd += '--input=' + R_labelled_out
+cmd += '--ncols=' + str(ncols) + ' '
+cmd += '--schedule=80,80,80 '
+cmd += '--times_output=recursive_times '
+cmd += '--output=' + rec_out + ' '
+cmd += '--hadoop=icme-hadoop1 '
 
-if os.path.exists(Q2_file):
-  os.remove(Q2_file)
+cm.exec_cmd(cmd)
 
-if os.path.exists(Q2_file + '.out'):
-  os.remove(Q2_file + '.out')
+# Run the Q grouper
+Q_rec_out = 'DIRTSQR_Q_RECURSIVE'
+cm.run_dumbo('QGrouper.py', hadoop, ['-mat ' + rec_out + '_3',
+                                     '-output ' + Q_rec_out,
+                                     '-ncols ' + str(ncols)])
 
-cm.copy_from_hdfs(out2 + '/Q2', Q2_file)
-cm.parse_seq_file(Q2_file)
-
-if svd_opt in [2, 3]:
-  small_U_file = out_file('U.txt')
-
-  if os.path.exists(small_U_file):
-    os.remove(small_U_file)
-  if os.path.exists(small_U_file + '.out'):
-    os.remove(small_U_file + '.out')
-
-  cm.copy_from_hdfs(out2 + '/U', small_U_file)
-  cm.parse_seq_file(small_U_file)
-
+# Finally, generate Q
 in3 = out1 + '/Q_*'
-opts = ['-mat ' + in3, '-output ' + out + '_3', '-ncols ' + str(ncols),
-        '-q2path ' + Q2_file + '.out', '-nummaptasks %d' % sched[2],
-        '-libjar feathers.jar']
-if svd_opt == 3:
-  opts += ['-upath ' + small_U_file + '.out']
-cm.run_dumbo('dirtsqr3.py', hadoop, opts)
-
-if svd_opt == 2:
-  # We need an addition TS matrix multiply to get the left singular vectors
-  out4 = out + '_4'
-
-  cm.run_dumbo('TSMatMul.py', hadoop, ['-mat ' + out + '_3', '-output ' + out4,
-                                       '-mpath ' + small_U_file + '.out',
-                                       '-nummaptasks %d' % sched[2]])
+cm.run_dumbo('dirtsqr3_rec.py', hadoop, ['-mat ' + in3,
+                                         '-rec_mat ' + Q_rec_out,
+                                         '-output ' + out + '_3',
+                                         '-ncols ' + str(ncols),
+                                         '-nummaptasks %d' % sched[2]])
 
 try:
   f = open(times_out, 'a')

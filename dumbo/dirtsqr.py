@@ -58,7 +58,7 @@ class DirTSQRMap1(mrmc.MatrixHandler):
             self.counters['rows processed'] += 50000
 
     def close(self):
-        self.counters['rows processed'] += self.nrows%50000
+        self.counters['rows processed'] += self.nrows % 50000
 
         # if no data was passed to this task, we just return
         if len(self.data) == 0:
@@ -209,19 +209,7 @@ class DirTSQRMap3(dumbo.backends.common.MapRedBase):
                 self.Q2_data[key] = mat
         f.close()
 
-    # key1: unique mapper_id
-    # key2: row identifier
-    # value: row of Q1
-    def collect(self, key1, key2, value):
-        if key1 not in self.Q1_data:
-            self.Q1_data[key1] = []
-            assert(key1 not in self.row_keys)
-            self.row_keys[key1] = []
-
-        self.Q1_data[key1].append(row)
-        self.row_keys[key1].append(key2)
-
-    def collect2(self, key, keys, value):
+    def collect(self, key, keys, value):
         self.Q1_data[key] = (keys, value)
 
     def close(self):
@@ -239,7 +227,6 @@ class DirTSQRMap3(dumbo.backends.common.MapRedBase):
 
     def __call__(self, data):
         for key, val in data:
-            #keys, matrix = val
             ind = val.find('_')
             val1_len = int(val[:ind])
             keys = val[ind + 1:ind + 1 + val1_len]
@@ -250,7 +237,146 @@ class DirTSQRMap3(dumbo.backends.common.MapRedBase):
             mat = struct.unpack('d' * num_entries, matrix)
             mat = numpy.mat(mat)
             mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
-            self.collect2(key, keys, mat)            
+            self.collect(key, keys, mat)
 
         for key, val in self.close():
             yield key, val
+
+class RLabeller(dumbo.backends.common.MapRedBase):
+    def __init__(self):
+        self.data = []
+
+    def close(self):
+        for pair in self.data:
+            yield pair[0], pair[1]
+
+    def __call__(self, data):
+        for key, value in data:
+            for i, row in enumerate(value):
+                new_key = str(key) + '_' + str(i)
+                row = [float(val) for val in row]
+                row = struct.pack('d'*len(row), *row)
+                print >>sys.stderr, 'row is: ' + str(row)
+                print >>sys.stderr, 'key is: ' + new_key
+                self.data.append((new_key, row))
+        
+        for key, val in self.close():
+            yield key, val
+
+class QGrouper(dumbo.backends.common.MapRedBase):
+    def __init__(self):
+        self.data = []
+
+    def close(self):
+        for pair in self.data:
+            yield pair[0], pair[1]
+
+    def __call__(self, data):
+        for key, value in data:
+            new_key, num = key.split('_')
+            val = pickle.dumps((value, int(num)))
+            self.data.append((new_key, val))
+        
+        for key, val in self.close():
+            yield key, val
+
+class QGrouper2(dumbo.backends.common.MapRedBase):
+    def __init__(self, ncols):
+        self.ncols = ncols
+        self.data = {}
+
+    def close(self):
+        for key in self.data:
+            assert(None not in self.data[key])
+            local_Q = self.data[key]
+            flat_Q = [entry for row in local_Q for entry in row]
+            val = 'Q2' + '_' + struct.pack('d' * (self.ncols ** 2), *flat_Q)
+            yield key, val
+
+    def collect(self, key, value, num):
+        assert(num < self.ncols)
+        if key not in self.data:
+            self.data[key] = self.ncols * [None]
+
+        row = struct.unpack('d' * self.ncols, value)
+        self.data[key][num] = row
+
+    def __call__(self, data):
+        for key, values in data:
+            for value in values:
+                val, num = pickle.loads(value)
+                self.collect(key, val, num)
+        
+        for key, val in self.close():
+            yield key, val
+
+
+"""
+DirTSQRMap3
+------------
+
+input: Q1 as <mapper_id, [row] + [row_id]>
+input: Q2 comes attached as a text file, which is then parsed on the fly
+
+output: Q as <row_id, row>
+"""
+class DirTSQRRed3(dumbo.backends.common.MapRedBase):
+    def __init__(self, ncols):
+        # TODO implement this
+        #self.Q1_data = {}
+        #self.row_keys = {}
+        #self.Q2_data = {}
+        self.ncols = ncols
+        self.Q1_data = None
+        self.Q2_data = None
+
+    def collect(self, key, keys, value):
+        self.Q1_data = (keys, value)
+
+    def collect_Q2(self, key, value):
+        value = numpy.array(struct.unpack('d' * (self.ncols ** 2), value))
+        self.Q2_data = numpy.reshape(value, (self.ncols, self.ncols))
+
+    #def close(self):
+    #    for key in self.Q1_data:
+    #        assert(key in self.Q2_data)
+    #        keys, Q1 = self.Q1_data[key]
+    #        Q2 = self.Q2_data[key]
+    #        Q_out = Q1 * Q2
+    #        for i, row in enumerate(Q_out.getA()):
+    #            yield keys[i], struct.pack('d' * len(row), *row)
+
+    def flush(self):
+        keys, Q1 = self.Q1_data
+        Q2 = self.Q2_data
+        Q_out = Q1 * Q2
+        for i, row in enumerate(Q_out.getA()):
+                yield keys[i], struct.pack('d' * len(row), *row)
+        self.Q1_data = None
+        self.Q2_data = None
+
+    def __call__(self, data):
+        for key, values in data:
+            j = 0
+            for val in values:
+                assert(j < 2)
+                ind = val.find('_')
+                if val[:ind] == 'Q2':
+                    mat = val[ind+1:]
+                    self.collect_Q2(key, mat)
+                else:
+                    val1_len = int(val[:ind])
+                    keys = val[ind + 1:ind + 1 + val1_len]
+                    matrix = val[ind +1 +val1_len:]
+                    keys = pickle.loads(keys)
+                    num_entries = len(matrix) / 8
+                    assert (num_entries % self.ncols == 0)
+                    mat = struct.unpack('d' * num_entries, matrix)
+                    mat = numpy.mat(mat)
+                    mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
+                    self.collect(key, keys, mat)
+                j = j + 1
+
+            for k, v in self.flush():
+                yield k, v
+

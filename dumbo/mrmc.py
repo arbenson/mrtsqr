@@ -63,7 +63,7 @@ def starter_helper(prog, use_dirtsqr=False, use_house=False):
         if not numreps:
             numreps = 1
         for i in range(int(numreps)):
-            prog.addopt('input',mat)
+            prog.addopt('input', mat)
     
         return mat            
     else:
