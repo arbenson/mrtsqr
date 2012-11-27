@@ -102,8 +102,6 @@ cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
                                      '-nummaptasks %d' % sched[0],
                                      '-libjar feathers.jar'])
 
-sys.exit(0)
-
 out2 = out + '_2'
 cm.run_dumbo('dirtsqr2.py', hadoop, ['-mat ' + out1 + '/R_*', '-output ' + out2,
                                      '-svd ' + str(svd_opt),

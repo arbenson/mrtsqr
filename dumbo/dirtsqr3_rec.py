@@ -21,7 +21,7 @@ def runner(job):
     ncols = gopts.getintkey('ncols')
     mapper = mrmc.ID_MAPPER
     reducer = dirtsqr.DirTSQRRed3(ncols)
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks', str(200))])
+    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks', str(800))])
 
 def starter(prog):
     # set the global opts

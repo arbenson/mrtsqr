@@ -256,8 +256,6 @@ class RLabeller(dumbo.backends.common.MapRedBase):
                 new_key = str(key) + '_' + str(i)
                 row = [float(val) for val in row]
                 row = struct.pack('d'*len(row), *row)
-                print >>sys.stderr, 'row is: ' + str(row)
-                print >>sys.stderr, 'key is: ' + new_key
                 self.data.append((new_key, row))
         
         for key, val in self.close():
@@ -357,9 +355,7 @@ class DirTSQRRed3(dumbo.backends.common.MapRedBase):
 
     def __call__(self, data):
         for key, values in data:
-            j = 0
             for val in values:
-                assert(j < 2)
                 ind = val.find('_')
                 if val[:ind] == 'Q2':
                     mat = val[ind+1:]
@@ -375,7 +371,6 @@ class DirTSQRRed3(dumbo.backends.common.MapRedBase):
                     mat = numpy.mat(mat)
                     mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
                     self.collect(key, keys, mat)
-                j = j + 1
 
             for k, v in self.flush():
                 yield k, v

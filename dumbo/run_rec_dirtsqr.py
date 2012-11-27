@@ -96,22 +96,21 @@ hadoop = options.hadoop
 
 
 R_labelled_out = out + '_R_LABELLED'
-if 0:
-  # Now run the MapReduce jobs
-  out1 = out + '_1'
-  cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
-                                       '-nummaptasks %d' % sched[0],
-                                       '-libjar feathers.jar'])
+out1 = out + '_1'
 
-  # Two step recursion
+# Now run the MapReduce jobs
+#cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
+#                                     '-nummaptasks %d' % sched[0],
+#                                     '-libjar feathers.jar'])
 
-  cm.run_dumbo('RLabeller.py', hadoop, ['-mat ' + out1 + '/R_*',
-                                        '-output ' + R_labelled_out])
+# Two step recursion
+cm.run_dumbo('RLabeller.py', hadoop, ['-mat ' + out1 + '/R_*',
+                                      '-output ' + R_labelled_out])
 
 # Recursive step
 rec_out = 'RECURSIVE_DIRTSQR_TEST'
 cmd = 'python run_dirtsqr.py '
-cmd += '--input=' + R_labelled_out
+cmd += '--input=' + R_labelled_out + ' '
 cmd += '--ncols=' + str(ncols) + ' '
 cmd += '--schedule=80,80,80 '
 cmd += '--times_output=recursive_times '
