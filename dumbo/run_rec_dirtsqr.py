@@ -99,9 +99,9 @@ R_labelled_out = out + '_R_LABELLED'
 out1 = out + '_1'
 
 # Now run the MapReduce jobs
-#cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
-#                                     '-nummaptasks %d' % sched[0],
-#                                     '-libjar feathers.jar'])
+cm.run_dumbo('dirtsqr1.py', hadoop, ['-mat ' + in1, '-output ' + out1,
+                                     '-nummaptasks %d' % sched[0],
+                                     '-libjar feathers.jar'])
 
 # Two step recursion
 cm.run_dumbo('RLabeller.py', hadoop, ['-mat ' + out1 + '/R_*',
@@ -131,6 +131,7 @@ cm.run_dumbo('dirtsqr3_rec.py', hadoop, ['-mat ' + in3,
                                          '-rec_mat ' + Q_rec_out,
                                          '-output ' + out + '_3',
                                          '-ncols ' + str(ncols),
+                                         '-reducetasks ' + str(sched[2]),
                                          '-nummaptasks %d' % sched[2]])
 
 try:

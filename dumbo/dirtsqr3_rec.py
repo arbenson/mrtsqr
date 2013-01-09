@@ -19,9 +19,11 @@ gopts = util.GlobalOptions()
 
 def runner(job):
     ncols = gopts.getintkey('ncols')
+    reducetasks = gopts.getintkey('reducetasks')
     mapper = mrmc.ID_MAPPER
     reducer = dirtsqr.DirTSQRRed3(ncols)
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks', str(800))])
+    job.additer(mapper=mapper, reducer=reducer,
+                opts=[('numreducetasks', str(reducetasks))])
 
 def starter(prog):
     # set the global opts
@@ -41,6 +43,7 @@ def starter(prog):
     prog.addopt('input', rec_mat)
     
     gopts.getintkey('ncols', 10)
+    gopts.getintkey('reducetasks', 400)
 
     gopts.save_params()
 
