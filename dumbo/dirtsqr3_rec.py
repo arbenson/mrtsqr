@@ -23,7 +23,7 @@ def runner(job):
     mapper = mrmc.ID_MAPPER
     reducer = dirtsqr.DirTSQRRed3(ncols)
     job.additer(mapper=mapper, reducer=reducer,
-                opts=[('numreducetasks', str(reducetasks))])
+                opts=[('numreducetasks', str(int(reducetasks * 1.4)))])
 
 def starter(prog):
     # set the global opts
@@ -41,6 +41,8 @@ def starter(prog):
     if not rec_mat:
         return "'rec_mat' not specified"
     prog.addopt('input', rec_mat)
+    prog.addopt('jobconf', 'mapred.reduce.max.attempts=30')
+    prog.addopt('jobconf', 'mapred.max.tracker.failures=12')
     
     gopts.getintkey('ncols', 10)
     gopts.getintkey('reducetasks', 400)

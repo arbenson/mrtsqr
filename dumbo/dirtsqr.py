@@ -13,6 +13,7 @@ import time
 import struct
 import uuid
 import cPickle as pickle
+import gc
 
 import numpy
 import numpy.linalg
@@ -320,10 +321,6 @@ output: Q as <row_id, row>
 """
 class DirTSQRRed3(dumbo.backends.common.MapRedBase):
     def __init__(self, ncols):
-        # TODO implement this
-        #self.Q1_data = {}
-        #self.row_keys = {}
-        #self.Q2_data = {}
         self.ncols = ncols
         self.Q1_data = None
         self.Q2_data = None
@@ -335,23 +332,17 @@ class DirTSQRRed3(dumbo.backends.common.MapRedBase):
         value = numpy.array(struct.unpack('d' * (self.ncols ** 2), value))
         self.Q2_data = numpy.reshape(value, (self.ncols, self.ncols))
 
-    #def close(self):
-    #    for key in self.Q1_data:
-    #        assert(key in self.Q2_data)
-    #        keys, Q1 = self.Q1_data[key]
-    #        Q2 = self.Q2_data[key]
-    #        Q_out = Q1 * Q2
-    #        for i, row in enumerate(Q_out.getA()):
-    #            yield keys[i], struct.pack('d' * len(row), *row)
-
     def flush(self):
         keys, Q1 = self.Q1_data
         Q2 = self.Q2_data
         Q_out = Q1 * Q2
-        for i, row in enumerate(Q_out.getA()):
-                yield keys[i], struct.pack('d' * len(row), *row)
         self.Q1_data = None
         self.Q2_data = None
+        Q1 = None
+        Q2 = None
+        gc.collect()
+        for i, row in enumerate(Q_out.getA()):
+            yield keys[i], struct.pack('d' * len(row), *row)
 
     def __call__(self, data):
         for key, values in data:
@@ -374,4 +365,3 @@ class DirTSQRRed3(dumbo.backends.common.MapRedBase):
 
             for k, v in self.flush():
                 yield k, v
-
