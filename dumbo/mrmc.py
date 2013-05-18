@@ -105,8 +105,10 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
             self.ncols = len(value)
             print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
         if len(value) != self.ncols:
+            print >>sys.stderr, key
+            print >>sys.stderr, value
             raise DataFormatException(
-                'Length of value did not match number of columns')
+                'Length of value (%d) did not match number of columns (%d)' % (len(value), self.ncols))
         self.collect(key, value)        
 
     def collect_data(self, data, key=None):
@@ -144,15 +146,30 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
 Serial TSQR
 """
 class SerialTSQR(MatrixHandler):
-    def __init__(self, blocksize=3, isreducer=False, isfinal=False):
+    def __init__(self, blocksize=3, isreducer=False, isfinal=False, premult_file=None):
         MatrixHandler.__init__(self)
         self.blocksize = blocksize
         self.isreducer = isreducer
         self.data = []
+        self.A_data = []
         self.isfinal = isfinal
+        self.small = None
+        if premult_file != None:
+            self.parse_premult(premult_file)
+
+    def parse_premult(self, mpath):
+        data = []
+        for row in util.parse_matrix_txt(mpath):
+            data.append(row)
+        self.small = numpy.linalg.inv(numpy.mat(data))
     
     def QR(self):
-        A = numpy.array(self.data)
+        if self.small != None:
+            A = numpy.mat(self.A_data) * self.small
+            if len(self.data) > 0:
+                A = np.vstack(numpy.mat(self.data), A)
+        else:
+            A = numpy.mat(self.data)
         return numpy.linalg.qr(A,'r')
     
     def compress(self):
@@ -167,17 +184,27 @@ class SerialTSQR(MatrixHandler):
 
         # reset data and re-initialize to R
         self.data = []
+        self.A_data = []
         for row in R:
             self.data.append(util.array2list(row))
                         
     def collect(self, key, value):
-        self.data.append(value)
+        if self.small == None:
+            self.data.append(value)
+        else:
+            self.A_data.append(value)
         self.nrows += 1
         
-        if len(self.data) > self.blocksize * self.ncols:
-            self.counters['QR Compressions'] += 1
-            # compress the data
-            self.compress()
+        if self.small != None:
+            if len(self.A_data) > self.blocksize * self.ncols:
+                self.counters['QR Compressions'] += 1
+                # compress the data
+                self.compress()
+        else:
+            if len(self.data) > self.blocksize * self.ncols:
+                self.counters['QR Compressions'] += 1
+                # compress the data
+                self.compress()
             
         # write status updates so Hadoop doesn't complain
         if self.nrows % 50000 == 0:
