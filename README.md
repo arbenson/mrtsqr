@@ -77,29 +77,20 @@ at other stages, there are a few things you must do.
     # Look at the matrix in HDFS
     dumbo cat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
 
-    # Compute Q and R stably with Direct TSQR:
-    python run_direct_tsqr.py --input=tsqr/verytiny.tmat \
-          --ncols=4 \
-          --svd=0 \
-          --hadoop=$HADOOP_INSTALL \
-          --local_output=tsqr-tmp \
-          --output=verytiny_qr
-        
+    # Change directories
+    cd dumbo
+
     # Compute Q and R stably and the singular values:
-    python run_direct_tsqr.py --input=tsqr/verytiny.tmat \
+    python run_dirtsqr.py --input=tsqr/verytiny.mseq \
           --ncols=4 \
           --svd=1 \
           --hadoop=$HADOOP_INSTALL \
           --local_output=tsqr-tmp \
           --output=verytiny_qr
 
-    # Compute the singular values and vectors, but do not form Q
-    python run_direct_tsqr.py --input=tsqr/verytiny.tmat \
-          --ncols=4 \
-          --svd=3 \
-          --hadoop=$HADOOP_INSTALL \
-          --local_output=tsqr-tmp \
-          --output=verytiny_qr
+    dumbo cat verytiny_qr_2/Sigma/part-00000 -hadoop $HADOOP_INSTALL
+
+    (depending on your install, you may or may not need the part-00000 extension)
 
 Overview
 --------
