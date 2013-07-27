@@ -1,9 +1,13 @@
 *~
 *#
+
 *.pyc
+*.class
+*.egg
+*.jar
+
 java/build
 hadoopy/frozen
-*.class
 tsqr/
-*.egg
 local-hadoop
+
