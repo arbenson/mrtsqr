@@ -7,13 +7,13 @@ tsqr.py
 Driver code for tsqr.
 
 Example usage:
-dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 -reduce_schedule 20,1 \
--hadoop icme-hadoop1
+     dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 \
+     -reduce_schedule 20,1 -hadoop icme-hadoop1
 
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import mrmc
@@ -30,18 +30,15 @@ def runner(job):
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
-        nreducers = int(part)
-        if i == 0:
-            mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
-                                     isfinal=False)
-            isfinal = False
-        else:
-            mapper = mrmc.ID_MAPPER
+        isfinal = False
+        if i == len(schedule) - 1:
             isfinal = True
-        job.additer(mapper=mapper,
-                    reducer=mrmc.SerialTSQR(blocksize=blocksize,
-                                            isreducer=True,
-                                            isfinal=isfinal),
+        nreducers = int(part)
+        mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
+                                 isfinal=isfinal)
+        reducer = mrmc.SerialTSQR(blocksize=blocksize, isreducer=True,
+                                  isfinal=isfinal)
+        job.additer(mapper=mapper,reducer=reducer,
                     opts = [('numreducetasks', str(nreducers))])    
 
 def starter(prog):
