@@ -60,7 +60,7 @@ at other stages, there are a few things you must do.
 * hadoop is installed and working
 * feathers is installed and working for Direct TSQR
 
-### Example 1: TSQR
+### Example 1: TSQR and TS-SVD
 
     # Load all the paths.  You should update this for your setup.
     # This example only needs HADOOP_INSTALL set
@@ -89,6 +89,12 @@ at other stages, there are a few things you must do.
 
     # Look at R (should be the same, up to sign)
     dumbo cat verytiny-qrr-double-reduce.mseq/part-* -hadoop $HADOOP_INSTALL
+
+    # Run TS-SVD to compute the singular values
+    dumbo start dumbo/tssvd.py -mat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
+
+    # Look at the singular values
+    dumbo cat tsqr/verytiny-svd.mseq/part-* -hadoop $HADOOP_INSTALL
 
 ### Example 2: Stable Direct TSQR and SVD
     # Feathers needs to be installed and the jar needs to be in the classpath.

@@ -1,13 +1,13 @@
 #!/usr/bin/env dumbo
 
 """
-tsqr.py
+tssvd.py
 ===========
 
-Driver code for tsqr.
+Driver code for tall-and-skinny SVD.  Computes the singular values.
 
 Example usage:
-     dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 \
+     dumbo start tssvd.py -mat A_800M_10.bseq -nummaptasks 30 \
      -reduce_schedule 20,1 -hadoop icme-hadoop1
 
 
@@ -35,7 +35,7 @@ def runner(job):
         mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
                                  isfinal=isfinal)
         reducer = mrmc.SerialTSQR(blocksize=blocksize, isreducer=True,
-                                  isfinal=isfinal)
+                                  isfinal=isfinal, svd=isfinal)
         job.additer(mapper=mapper,reducer=reducer,
                     opts = [('numreducetasks', str(nreducers))])    
 
@@ -52,7 +52,7 @@ def starter(prog):
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
     if not output:
-        prog.addopt('output', '%s-qrr%s'%(matname, matext))
+        prog.addopt('output', '%s-svd%s'%(matname, matext))
 
     gopts.save_params()
 
