@@ -3,12 +3,11 @@
 '''
 This script is used to form the eigen decomposition needed for the DMD data.
 
-Example usage:
-python form_Y.py --S=MATMUL_OUT --Vt=SVD/Vt --Sigma=SVD/Sigma -o DMD
+See options:
+     python form_Y.py --help
 
-Use:
-  python form_Y.py --help
-for more information on how to use the program.
+Example usage:
+     python form_Y.py --S=MATMUL_OUT --Vt=SVD/Vt --Sigma=SVD/Sigma -o DMD
 
 S = U^TA^{(n)}
 A^{(n-1)} = U*Sigma*V^t
@@ -17,7 +16,7 @@ Let S_tilde = S*V*Sigma^{-1} and S_tilde = Y*Lambda (eigenvalue decomposition).
 Then the outputs are two n by n matrices, Re(Y) and Im(Y), i.e. the matrices
 consisting of the real pats and imaginary parts of the elements of Y.
 
-Copyright (c) 2012
+Copyright (c) 2013
 Austin R. Benson arbenson@gmail.com
 David F. Gleich
 '''

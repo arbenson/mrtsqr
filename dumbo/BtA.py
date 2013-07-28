@@ -7,9 +7,9 @@ BtA.py
 Driver code for B^T*A.
 
 Example usage:
-dumbo start BtA.py -hadoop icme-hadoop1 -matB B_matrix.mseq \
--matA A_matrix.mseq -output BTA_OUT -B_id B_matrix -blocksize 10 \
--reduce_schedule 10 -nummaptasks 40
+     dumbo start BtA.py -hadoop icme-hadoop1 -matB B_matrix.mseq \
+     -matA A_matrix.mseq -output BTA_OUT -B_id B_matrix -blocksize 10 \
+     -reduce_schedule 10 -nummaptasks 40
 
 B_id is a unique identifier for the path of the B matrix that does not
 occur in the path to the A matrix.
@@ -17,7 +17,7 @@ occur in the path to the A matrix.
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import os

@@ -17,7 +17,7 @@ This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 
 Austin R. Benson     arbenson@stanford.edu
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import os

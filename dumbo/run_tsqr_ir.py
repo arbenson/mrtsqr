@@ -8,10 +8,13 @@ See options:
      python run_tsqr_ir.py --help
 
 Example usage:
+     python run_tsqr_ir.py --input=A_600M_25.bseq --blocksize=5 \
+     --hadoop=icme-hadoop1 --output=IR_TESTING --times_output=ir_times
+
 
 Austin R. Benson     arbenson@stanford.edu
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 """

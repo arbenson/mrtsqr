@@ -7,12 +7,12 @@ TSMatMul.py
 Compute A*B, where A is tall-and-skinny, and B is small.
 
 Example usage:
-dumbo start TSMatMul.py -hadoop icme-hadoop1 -mat A_800M_10.bseq \
--mpath B_10_10.txt
+     dumbo start TSMatMul.py -hadoop icme-hadoop1 -mat A_800M_10.bseq \
+     -mpath B_10_10.txt
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import mrmc

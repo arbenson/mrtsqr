@@ -7,12 +7,12 @@ ARInv.py
 Compute AR^{-1}, where A is tall-and-skinny, and R is small
 
 Example usage:
-dumbo start TSMatMul.py -hadoop icme-hadoop1 -mat A_800M_10.bseq \
--rpath R_10_10.txt
+     dumbo start TSMatMul.py -hadoop icme-hadoop1 -mat A_800M_10.bseq \
+     -rpath R_10_10.txt
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import mrmc

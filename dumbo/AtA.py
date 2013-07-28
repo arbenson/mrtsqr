@@ -7,11 +7,11 @@ AtA.py
 Driver code for A^T*A.
 
 Example usage:
-dumbo start AtA.py -mat A_matrix -reduce_schedule 1 -hadoop icme-hadoop1
+     dumbo start AtA.py -mat A_matrix -reduce_schedule 1 -hadoop icme-hadoop1
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import os

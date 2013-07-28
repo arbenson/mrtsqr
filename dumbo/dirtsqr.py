@@ -5,7 +5,7 @@ Direct MapReduce TSQR
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import sys

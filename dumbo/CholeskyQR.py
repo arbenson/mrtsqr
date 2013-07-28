@@ -13,7 +13,7 @@ dumbo start CholeskyQR.py -mat A_800M_10.bseq -ncols 10 -nummaptasks 30 \
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import dumbo

@@ -5,7 +5,7 @@ Direct TSQR algorithm for MapReduce (part 1)
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import mrmc
