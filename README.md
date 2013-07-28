@@ -125,3 +125,8 @@ Overview
 * `dumbo/tsqr.py` - the indirect tsqr function for dumbo
 * `cxx/tsqr.cc` - the tsqr code using C++
 * `cxx/typedbytes.h` - the header file for the C++ typedbytes library
+
+Contact
+--------
+
+For questions, suggestions, bug reports, and contributions, please email Austin Benson: arbenson AT stanford DOT edu.
