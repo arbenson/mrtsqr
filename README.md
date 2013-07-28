@@ -60,7 +60,7 @@ at other stages, there are a few things you must do.
 * hadoop is installed and working
 * feathers is installed and working for Direct TSQR
 
-### Example
+### Example 1: TSQR
 
     # Load all the paths.  You should update this for your setup.
     # This example only needs HADOOP_INSTALL set
@@ -70,16 +70,33 @@ at other stages, there are a few things you must do.
     hadoop fs -mkdir tsqr
     hadoop fs -copyFromLocal data/verytiny.tmat tsqr/verytiny.tmat
     dumbo start dumbo/matrix2seqfile.py \
-        -hadoop $HADOOP_INSTALL \
-        -input tsqr/verytiny.tmat -output tsqr/verytiny.mseq
+    -hadoop $HADOOP_INSTALL \
+    -input tsqr/verytiny.tmat -output tsqr/verytiny.mseq
+
+    # Look at the matrix in HFDS
+    dumbo cat tsqr/verytiny.mseq/part-* -hadoop $HADOOP_INSTALL
     
-    # Look at the matrix in HDFS
-    dumbo cat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
+    # Run TSQR
+    dumbo start dumbo/tsqr.py -mat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
+
+    # Look at R in HDFS
+    dumbo cat tsqr/verytiny-qrr.mseq/part-* -hadoop $HADOOP_INSTALL
+
+    # Run TSQR with a different reduce schedule and output name
+    dumbo start dumbo/tsqr.py -mat tsqr/verytiny.mseq -reduce_schedule 2,1 \
+     -hadoop $HADOOP_INSTALL \
+     -output verytiny-qrr-double-reduce.mseq
+
+    # Look at R (should be the same, up to sign)
+    dumbo cat verytiny-qrr-double-reduce.mseq/part-* -hadoop $HADOOP_INSTALL
+
+### Example 2: Stable Direct TSQR and SVD
+    # Feathers needs to be installed and the jar needs to be in the classpath.
 
     # Change directories
     cd dumbo
 
-    # Compute Q and R stably and the singular values:
+    # Compute Q, R, and singular values stably:
     python run_dirtsqr.py --input=tsqr/verytiny.mseq \
           --ncols=4 \
           --svd=1 \
@@ -88,9 +105,11 @@ at other stages, there are a few things you must do.
           --output=verytiny_qr
 
     # Look at the singular values
-    dumbo cat verytiny_qr_2/Sigma/part-00000 -hadoop $HADOOP_INSTALL
+    dumbo cat verytiny_qr_2/Sigma/part-* -hadoop $HADOOP_INSTALL
+    
+    # Look at R
+    dumbo cat verytiny_qr_2/R_final/part-* -hadoop $HADOOP_INSTALL
 
-    (depending on your install, you may or may not need the part-00000 extension)
 
 Overview
 --------
