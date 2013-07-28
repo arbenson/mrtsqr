@@ -5,7 +5,7 @@ MapReduce matrix computations.  This contains the basic building blocks.
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2013
 """
 
 import sys
@@ -144,12 +144,13 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
 Serial TSQR
 """
 class SerialTSQR(MatrixHandler):
-    def __init__(self, blocksize=3, isreducer=False, isfinal=False):
+    def __init__(self, blocksize=3, isreducer=False, isfinal=False, svd=False):
         MatrixHandler.__init__(self)
         self.blocksize = blocksize
         self.isreducer = isreducer
         self.data = []
         self.isfinal = isfinal
+        self.svd = svd
     
     def QR(self):
         A = numpy.array(self.data)
@@ -183,9 +184,18 @@ class SerialTSQR(MatrixHandler):
         if self.nrows % 50000 == 0:
             self.counters['rows processed'] += 50000
 
+    def compute_svd(self):
+        A = numpy.array(self.data)
+        _, S, _ = numpy.linalg.svd(A)
+        self.data = []
+        for val in S:
+            self.data.append(val)
+
     def close(self):
         self.counters['rows processed'] += self.nrows % 50000
         self.compress()
+        if self.svd:
+            self.compute_svd()
         for i,row in enumerate(self.data):
             key = numpy.random.randint(0, 4000000000)
             # If this is not the final output, we can use a TypedBytes String format
@@ -244,8 +254,11 @@ class TSMatMul(MatrixHandler):
 
         # reset data and add flushed update to local copy
         self.data = []
+        #for i, row in enumerate(out_mat.getA()):
+        #    yield self.keys[i], struct.pack('d' * len(row), *row)
+
         for i, row in enumerate(out_mat.getA()):
-            yield self.keys[i], struct.pack('d' * len(row), *row)
+            yield self.keys[i], row
 
         # clear the keys
         self.keys = []
@@ -404,6 +417,7 @@ class BtAReducer(MatrixHandler):
             self.counters['rows processed'] += 50000
 
     def close(self):
+        print >>sys.stderr, 'Length of A: ' + len(self.dataA)
         if len(self.dataA) != len(self.dataB):
             raise DataFormatException('A and B data lengths do not match!')
         self.counters['rows processed'] += self.nrows
@@ -415,10 +429,16 @@ class BtAReducer(MatrixHandler):
     def __call__(self, data):
         # this is always a reducer
         for key,values in data:
+            print >>sys.stderr, 'Collecting...'
             for val in values:
+                print >>sys.stderr, val
+                print >>sys.stderr, values
+                print >>sys.stderr, 'Collecting vals...'
                 if val[0] == 'B':
+                    print >>sys.stderr, 'Collecting B...'
                     self.collect(key, val[1], self.dataB)
                 elif val[0] == 'A':
+                    print >>sys.stderr, 'Collecting A...'
                     self.collect(key, val[1], self.dataA)
                 else:
                     raise DataFormatException('Do not recognize source of data')
@@ -467,6 +487,3 @@ class ArraySumReducer(MatrixHandler):
             self.collect_data(values, key)
         for key in self.row_sums:
             yield key, self.row_sums[key]
-
-        
-
