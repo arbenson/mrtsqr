@@ -146,13 +146,14 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
 Serial TSQR
 """
 class SerialTSQR(MatrixHandler):
-    def __init__(self, blocksize=3, isreducer=False, isfinal=False, premult_file=None):
+    def __init__(self, blocksize=3, isreducer=False, isfinal=False, svd=False, premult_file=None):
         MatrixHandler.__init__(self)
         self.blocksize = blocksize
         self.isreducer = isreducer
         self.data = []
         self.A_data = []
         self.isfinal = isfinal
+        self.svd = svd
         self.small = None
         if premult_file != None:
             self.parse_premult(premult_file)
