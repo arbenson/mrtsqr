@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-
-'''
+"""
 This script is used to form the eigen decomposition needed for the DMD data.
 
 See options:
@@ -16,10 +14,10 @@ Let S_tilde = S*V*Sigma^{-1} and S_tilde = Y*Lambda (eigenvalue decomposition).
 Then the outputs are two n by n matrices, Re(Y) and Im(Y), i.e. the matrices
 consisting of the real pats and imaginary parts of the elements of Y.
 
-Copyright (c) 2013
-Austin R. Benson arbenson@gmail.com
+Copyright (c) 2012-2014
+Austin R. Benson
 David F. Gleich
-'''
+"""
 
 from optparse import OptionParser
 import numpy
