@@ -1,10 +1,12 @@
-#!/usr/bin/env dumbo
-
 """
-Cholesky.py
+CholeskyQR.py
 ===========
 
-Implement a Cholesky QR algorithm using dumbo and numpy.
+Compute R from the QR factorization using Cholesky QR.
+The factor R is computed by the Cholesky factorization of A^TA:
+
+  A = QR --> A^TA = R^TR
+
 
 Example usage:
 dumbo start CholeskyQR.py -mat A_800M_10.bseq -ncols 10 -nummaptasks 30 \
@@ -13,7 +15,7 @@ dumbo start CholeskyQR.py -mat A_800M_10.bseq -ncols 10 -nummaptasks 30 \
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2013-2014
 """
 
 import dumbo

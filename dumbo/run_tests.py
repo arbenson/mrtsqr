@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+"""
+Code to run tests for MRTSQR.
+
+"""
+
 import numpy
 import os
 import shutil
@@ -51,13 +56,6 @@ def txt_to_mseq(inp, outp):
   cm.copy_to_hdfs(inp, inp)
   cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-input ' + inp,
                                                      '-output ' + outp,
-                                                     '-nummaptasks 1'])
-
-def txt_to_bseq(inp, outp):
-  cm.copy_to_hdfs(inp, inp)
-  cm.run_dumbo('matrix2seqfile.py', 'icme-hadoop1', ['-input ' + inp,
-                                                     '-output ' + outp,
-                                                     'use_tb_str',
                                                      '-nummaptasks 1'])
 
 def clean():

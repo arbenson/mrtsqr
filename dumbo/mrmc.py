@@ -371,6 +371,24 @@ class AtA(MatrixHandler):
             yield key, val
 
 
+class BtAMapper(dumbo.backends.common.MapRedBase):
+    opts = [('addpath', 'yes')]
+    def __init__(self, B_id):
+        self.B_id = B_id
+
+    def __call__(self, key_, value):
+        path = key_[0]
+        key = key_[1]
+        if path.find(self.B_id) == -1:
+            # this is A
+            self.counters['A values'] += 1
+            yield key, ('A', value)
+        else:
+            # this is B
+            self.counters['B values'] += 1
+            yield key, ('B', value)
+
+
 class BtAReducer(MatrixHandler):
     # Now that we have B and A stored together, combine them locally
     def __init__(self, blocksize=3):
@@ -404,9 +422,11 @@ class BtAReducer(MatrixHandler):
         else:
             self.BtA = self.BtA + BtA_flush
 
-    def collect(self,key,value,subset):        
+    def collect(self, key, value, subset):
         subset.append(value)
         self.nrows += 1
+        if self.ncols == None:
+            self.ncols = len(value)
         
         if len(subset) > self.blocksize * self.ncols:
             # compress the data
@@ -417,7 +437,6 @@ class BtAReducer(MatrixHandler):
             self.counters['rows processed'] += 50000
 
     def close(self):
-        print >>sys.stderr, 'Length of A: ' + len(self.dataA)
         if len(self.dataA) != len(self.dataB):
             raise DataFormatException('A and B data lengths do not match!')
         self.counters['rows processed'] += self.nrows
@@ -428,42 +447,17 @@ class BtAReducer(MatrixHandler):
         
     def __call__(self, data):
         # this is always a reducer
-        for key,values in data:
-            print >>sys.stderr, 'Collecting...'
+        for key, values in data:
             for val in values:
-                print >>sys.stderr, val
-                print >>sys.stderr, values
-                print >>sys.stderr, 'Collecting vals...'
                 if val[0] == 'B':
-                    print >>sys.stderr, 'Collecting B...'
                     self.collect(key, val[1], self.dataB)
                 elif val[0] == 'A':
-                    print >>sys.stderr, 'Collecting A...'
                     self.collect(key, val[1], self.dataA)
                 else:
                     raise DataFormatException('Do not recognize source of data')
 
         for key, val in self.close():
             yield key, val
-
-
-class BtAMapper(dumbo.backends.common.MapRedBase):
-    opts = [('addpath','yes')]
-    def __init__(self, B_id):
-        self.B_id = B_id
-
-    def __call__(self, key_, value):
-        path = key_[0]
-        print >>sys.stderr, 'path is: ' + str(path)
-        key = key_[1]
-        if path.find(self.B_id) == -1:
-            # this is A
-            self.counters['A values'] += 1
-            yield key, ('A', value)
-        else:
-            # this is B
-            self.counters['B values'] += 1
-            yield key, ('B', value)
 
 
 class ArraySumReducer(MatrixHandler):

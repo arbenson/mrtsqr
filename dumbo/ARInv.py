@@ -29,7 +29,7 @@ def runner(job):
 
     mapper = mrmc.ARInv(blocksize=blocksize,rpath=rpath)
     reducer = mrmc.ID_REDUCER
-    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])    
+    job.additer(mapper=mapper,reducer=reducer,opts=[('numreducetasks',str(0))])
 
 def starter(prog):
     gopts.prog = prog
