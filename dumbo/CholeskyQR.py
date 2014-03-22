@@ -33,12 +33,14 @@ def runner(job):
     ncols = gopts.getintkey('ncols')
     if ncols <= 0:
        sys.exit('ncols must be a positive integer')
+    mpath = gopts.getstrkey('mpath')
+    if mpath == '': mpath = None
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
         nreducers = int(part)
         if i == 0:
-            mapper = mrmc.AtA(blocksize=blocksize)
+            mapper = mrmc.AtA(blocksize=blocksize, premult_file=mpath)
             reducer = mrmc.ArraySumReducer
         else:
             mapper = mrmc.ID_MAPPER
@@ -57,6 +59,13 @@ def starter(prog):
 
     mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
+
+    mpath = prog.delopt('mpath')
+    if mpath:
+        prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))
+        gopts.getstrkey('mpath', mpath)
+    else:
+        gopts.getstrkey('mpath', '')
     
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')

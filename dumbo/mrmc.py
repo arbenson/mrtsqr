@@ -105,8 +105,10 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
             self.ncols = len(value)
             print >>sys.stderr, 'Matrix size: %i columns' % (self.ncols)
         if len(value) != self.ncols:
+            print >>sys.stderr, key
+            print >>sys.stderr, value
             raise DataFormatException(
-                'Length of value did not match number of columns')
+                'Length of value (%d) did not match number of columns (%d)' % (len(value), self.ncols))
         self.collect(key, value)        
 
     def collect_data(self, data, key=None):
@@ -144,22 +146,41 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
 Serial TSQR
 """
 class SerialTSQR(MatrixHandler):
-    def __init__(self, blocksize=3, isreducer=False, isfinal=False, svd=False):
+    def __init__(self, blocksize=3, isreducer=False, isfinal=False, premult_file=None):
         MatrixHandler.__init__(self)
         self.blocksize = blocksize
         self.isreducer = isreducer
         self.data = []
+        self.A_data = []
         self.isfinal = isfinal
-        self.svd = svd
+        self.small = None
+        if premult_file != None:
+            self.parse_premult(premult_file)
+
+    def parse_premult(self, mpath):
+        data = []
+        for row in util.parse_matrix_txt(mpath):
+            data.append(row)
+        self.small = numpy.linalg.inv(numpy.mat(data))
     
     def QR(self):
-        A = numpy.array(self.data)
-        return numpy.linalg.qr(A,'r')
+        if self.small != None and len(self.A_data) > 0:
+            A = numpy.mat(self.A_data)
+            if self.isreducer:
+                raise Exception('Reducer has a premultiply matrix!')
+            A = A * self.small
+            print >>sys.stderr, 'Before vstack, A.shape: ' + str(A.shape)
+            if len(self.data) > 0:
+                A = numpy.vstack((numpy.array(self.data), numpy.array(A)))
+        else:
+            A = numpy.array(self.data)
+        if min(A.shape) == 0:
+            print >>sys.stderr, 'A has 0 shape'
+            return []
+        return numpy.linalg.qr(A, 'r')
     
     def compress(self):
         # Compute a QR factorization on the data accumulated so far.
-        if self.ncols is None or len(self.data) < self.ncols:
-            return
 
         t0 = time.time()
         R = self.QR()
@@ -168,17 +189,27 @@ class SerialTSQR(MatrixHandler):
 
         # reset data and re-initialize to R
         self.data = []
+        self.A_data = []
         for row in R:
             self.data.append(util.array2list(row))
                         
     def collect(self, key, value):
-        self.data.append(value)
+        if self.small != None:
+            self.A_data.append(value)
+        else:
+            self.data.append(value)
         self.nrows += 1
         
-        if len(self.data) > self.blocksize * self.ncols:
-            self.counters['QR Compressions'] += 1
-            # compress the data
-            self.compress()
+        if self.small != None:
+            if len(self.A_data) > self.blocksize * self.ncols:
+                self.counters['QR Compressions'] += 1
+                # compress the data
+                self.compress()
+        else:
+            if len(self.data) > self.blocksize * self.ncols:
+                self.counters['QR Compressions'] += 1
+                # compress the data
+                self.compress()
             
         # write status updates so Hadoop doesn't complain
         if self.nrows % 50000 == 0:
@@ -285,6 +316,68 @@ class TSMatMul(MatrixHandler):
         for key, val in self.compress():
             yield key, val
 
+"""
+Tall-and-skinny matrix multiplication
+"""
+class TSMatMul2(MatrixHandler):
+    def __init__(self, blocksize=3, mpath='m.txt', mpath2='m2.txt'):
+        MatrixHandler.__init__(self)        
+        self.blocksize = blocksize
+        self.row = None
+        self.data = []
+        self.keys = []
+        self.small1 = self.parseM(mpath)
+        self.small2 = self.parseM(mpath2)
+
+    def parseM(self, mpath):
+        data = []
+        for row in util.parse_matrix_txt(mpath):
+            data.append(row)
+        return numpy.mat(data)
+
+    def compress(self):        
+        # Compute the matmul on the data accumulated so far
+        if self.ncols is None or len(self.data) == 0:
+            return
+
+        self.counters['MatMul compression'] += 1
+
+        t0 = time.time()
+        A = numpy.mat(self.data)
+        out_mat = (A * self.small1) * self.small2
+        dt = time.time() - t0
+        self.counters['numpy time (millisecs)'] += int(1000 * dt)
+
+        # reset data and add flushed update to local copy
+        self.data = []
+        for i, row in enumerate(out_mat.getA()):
+            yield self.keys[i], struct.pack('d' * len(row), *row)
+
+        # clear the keys
+        self.keys = []
+    
+    def collect(self, key, value):
+        self.keys.append(key)
+        self.data.append(value)
+        self.nrows += 1
+        
+        # write status updates so Hadoop doesn't complain
+        if self.nrows%50000 == 0:
+            self.counters['rows processed'] += 50000
+
+    def __call__(self, data):
+        for key,value in data:
+            self.collect_data_instance(key, value)
+
+            # if we accumulated enough rows, output some data
+            if len(self.data) >= self.blocksize * self.ncols:
+                for key, val in self.compress():
+                    yield key, val
+                    
+        # output data the end of the data
+        for key, val in self.compress():
+            yield key, val
+
 
 """
 ARInv is just a thin wrapper around TSMatMul
@@ -295,6 +388,17 @@ class ARInv(TSMatMul):
         # Computing ARInv is the same as TSMatMul, except that our multiplier is
         # the inverse of the parsed matrix.
         self.small = numpy.linalg.pinv(self.small)
+
+"""
+ARInv is just a thin wrapper around TSMatMul
+"""
+class ARInv2(TSMatMul2):
+    def __init__(self, blocksize=3, rpath='m.txt', rpath2='m2.txt'):
+        TSMatMul2.__init__(self, blocksize=blocksize, mpath=rpath, mpath2=rpath2)
+        # Computing ARInv is the same as TSMatMul, except that our multiplier is
+        # the inverse of the parsed matrix.
+        self.small1 = numpy.linalg.inv(self.small1)
+        self.small2 = numpy.linalg.inv(self.small2)
 
 
 class Cholesky(dumbo.backends.common.MapRedBase):
@@ -319,11 +423,20 @@ class Cholesky(dumbo.backends.common.MapRedBase):
 
 
 class AtA(MatrixHandler):
-    def __init__(self, blocksize=3):
+    def __init__(self, blocksize=3, premult_file=None):
         MatrixHandler.__init__(self)        
         self.blocksize=blocksize
         self.data = []
         self.A_curr = None
+        if premult_file != None:
+            self.parse_premult(premult_file)
+        self.premult_file = premult_file
+
+    def parse_premult(self, mpath):
+        data = []
+        for row in util.parse_matrix_txt(mpath):
+            data.append(row)
+        self.small = numpy.linalg.inv(numpy.mat(data))
     
     def compress(self):
         # Compute AtA on the data accumulated so far
@@ -332,6 +445,8 @@ class AtA(MatrixHandler):
 
         t0 = time.time()
         A_mat = numpy.mat(self.data)
+        if self.premult_file != None:
+            A_mat *= self.small
         A_flush = A_mat.T * A_mat
         dt = time.time() - t0
         self.counters['numpy time (millisecs)'] += int(1000 * dt)

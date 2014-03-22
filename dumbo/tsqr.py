@@ -27,6 +27,8 @@ gopts = util.GlobalOptions()
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
+    mpath = gopts.getstrkey('mpath')
+    if mpath == '': mpath = None
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
@@ -48,6 +50,13 @@ def starter(prog):
 
     mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
+
+    mpath = prog.delopt('mpath')
+    if mpath:
+        prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))
+        gopts.getstrkey('mpath', mpath)
+    else:
+        gopts.getstrkey('mpath', '')
     
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')
