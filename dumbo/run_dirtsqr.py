@@ -1,8 +1,8 @@
-#!/usr/bin/env python
-
 """
 This is a script to run the Direct TSQR algorithm with direct computation
-of the matrix Q.
+of the matrix Q.  This script can also be used for direct computation
+of the left singular vectors (along with the singular values and right
+singular vectors).
 
 See options:
      python run_direct_tsqr.py --help
@@ -13,11 +13,9 @@ Example usage:
             --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
             --output=DIRTSQR_TESTING
 
-This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
-
-Austin R. Benson     arbenson@stanford.edu
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 """
 
 import os

@@ -1,9 +1,18 @@
 """
-Convert a textual matrix file into a sequence file of typed bytes
+Convert a textual matrix file into a sequence file of typed bytes.
+
+Usage:
+     dumbo start matrix2seqfile.py -hadoop $HADOOP_INSTALL \
+     -input [name of input file]
+     -output [name of output file]
 
 Example usage:
      dumbo start matrix2seqfile.py -hadoop $HADOOP_INSTALL \
            -input matrix.txt -output matrix.mseq
+
+Austin R. Benson
+David F. Gleich
+Copyright (c) 2012-2014
 """
 
 import sys
