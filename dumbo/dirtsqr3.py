@@ -1,11 +1,11 @@
-#!/usr/bin/env dumbo
-
 """
-Direct TSQR algorithm for MapReduce (part 3)
+Direct TSQR algorithm (part 3).
+
+Use the script run_dirtsqr.py to run Direct TSQR.
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 """
 
 import mrmc

@@ -1,11 +1,11 @@
-#!/usr/bin/env dumbo
-
 """
-R labeller for recursive Direct TSQR
+Q grouper class used by recursive Direct TSQR.
 
-Austin R. Benson (arbenson@stanford.edu)
+Use the script run_rec_dirtsqr.py to run recursive Direct TSQR.
+
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2012-2014
 """
 
 import mrmc
@@ -19,8 +19,8 @@ gopts = util.GlobalOptions()
 
 def runner(job):
     ncols = gopts.getintkey('ncols')
-    mapper = dirtsqr.QGrouper()
-    reducer = dirtsqr.QGrouper2(ncols)
+    mapper = dirtsqr.QGrouperMap()
+    reducer = dirtsqr.QGrouperReduce(ncols)
     job.additer(mapper=mapper, reducer=reducer,
                 opts=[('numreducetasks', str(100))])
 

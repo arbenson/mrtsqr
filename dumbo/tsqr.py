@@ -1,19 +1,24 @@
-#!/usr/bin/env dumbo
-
 """
-tsqr.py
+tssvd.py
 ===========
 
-Driver code for tsqr.
+Compute the R factor in the QR factorization of a matrix.
+
+Usage:
+     dumbo start tssvd.py -hadoop $HADOOP_INSTALL \
+     -mat [name of matrix file] \
+     -reduce_schedule [optional: number of reducers to use in each stage] \
+     -output [optional: name of output file] \
+     -blocksize [optional: block size for compression]
 
 Example usage:
-     dumbo start tsqr.py -mat A_800M_10.bseq -nummaptasks 30 \
-     -reduce_schedule 20,1 -hadoop icme-hadoop1
+     dumbo start tsqr.py -hadoop $HADOOP_INSTALL \
+     -mat A_800M_10.bseq -output A_singvals \
+     -reduce_schedule 40,1
 
-
-Austin R. Benson (arbenson@stanford.edu)
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 """
 
 import mrmc

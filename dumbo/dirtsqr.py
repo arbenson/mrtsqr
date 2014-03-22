@@ -1,11 +1,11 @@
-#!/usr/bin/env dumbo
-
 """
-Direct MapReduce TSQR
+Mapper and reducer implementations for Direct TSQR.
 
-Austin R. Benson (arbenson@stanford.edu)
+Use the script run_dirtsqr.py to run Direct TSQR.
+
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 """
 
 import sys

@@ -168,7 +168,7 @@ def ARInv_test():
 
   cm.run_dumbo('ARInv.py', 'icme-hadoop1', ['-mat ' + ts_mat_out_mseq,
                                             '-output ' + result_out,
-                                            '-rpath ' + small_mat_out,
+                                            '-matpath ' + small_mat_out,
                                             '-nummaptasks 1'])
 
   # we should only have one output file

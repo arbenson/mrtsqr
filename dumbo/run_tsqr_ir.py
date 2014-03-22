@@ -100,7 +100,7 @@ def tsqr_arinv_iter(in1, out):
     cm.run_dumbo('ARInv.py', hadoop, ['-mat ' + in1,
                                       '-blocksize ' + str(blocksize),          
                                       '-output ' + out2,
-                                      '-rpath ' + R_file + '.out'])
+                                      '-matpath ' + R_file + '.out'])
 
 tsqr_arinv_iter(in1, out)
 tsqr_arinv_iter(out + '_Q', out + '_IR')

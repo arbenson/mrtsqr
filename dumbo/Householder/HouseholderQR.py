@@ -1,11 +1,11 @@
-#!/usr/bin/env dumbo
-
 """
-Householder mrtsqr
+Householder QR.
 
-Austin R. Benson (arbenson@stanford.edu)
+Use the script run_householder.py to use the code.
+
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 """
 
 import struct

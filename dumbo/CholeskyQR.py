@@ -7,15 +7,28 @@ The factor R is computed by the Cholesky factorization of A^TA:
 
   A = QR --> A^TA = R^TR
 
+Usage:
+     dumbo start CholeskyQR.py -hadoop $HADOOP_INSTALL \
+     -mat [name of matrix file] \
+     -ncols [number of columns in the matrix] \
+     -reduce_schedule [optional: number of reducers to use in each stage] \
+     -output [optional: name of output file] \
+     -matpath [optional: local path to small matrix for pre-multiplication] \
+     -blocksize [optional: block size for compression]
+
+The option 'matpath' can be used to provide a small matrix pre-multiplication
+in one MapReduce step.  For example, if the the pre-multiplication file is M,
+then this option computes the QR factorization of A * M without any additional
+passes over the data.
 
 Example usage:
-dumbo start CholeskyQR.py -mat A_800M_10.bseq -ncols 10 -nummaptasks 30 \
--reduce_schedule 20,1 -hadoop icme-hadoop1
+     dumbo start CholeskyQR.py -hadoop $HADOOP_INSTALL \
+     -mat A_800M_10.bseq -ncols 10 -reduce_schedule 40,1
 
 
-Austin R. Benson (arbenson@stanford.edu)
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013-2014
+Copyright (c) 2012-2014
 """
 
 import dumbo
@@ -33,14 +46,15 @@ def runner(job):
     ncols = gopts.getintkey('ncols')
     if ncols <= 0:
        sys.exit('ncols must be a positive integer')
-    mpath = gopts.getstrkey('mpath')
-    if mpath == '': mpath = None
+    matpath = gopts.getstrkey('matpath')
+    if matpath == '':
+        matpath = None
     
     schedule = schedule.split(',')
     for i,part in enumerate(schedule):
         nreducers = int(part)
         if i == 0:
-            mapper = mrmc.AtA(blocksize=blocksize, premult_file=mpath)
+            mapper = mrmc.AtA(blocksize=blocksize, premult_file=matpath)
             reducer = mrmc.ArraySumReducer
         else:
             mapper = mrmc.ID_MAPPER
@@ -60,12 +74,12 @@ def starter(prog):
     mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
 
-    mpath = prog.delopt('mpath')
-    if mpath:
-        prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))
-        gopts.getstrkey('mpath', mpath)
+    matpath = prog.delopt('matpath')
+    if matpath:
+        prog.addopt('file', os.path.join(os.path.dirname(__file__), matpath))
+        gopts.getstrkey('matpath', matpath)
     else:
-        gopts.getstrkey('mpath', '')
+        gopts.getstrkey('matpath', '')
     
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')

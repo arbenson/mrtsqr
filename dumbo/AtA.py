@@ -1,17 +1,25 @@
-#!/usr/bin/env dumbo
-
 """
 AtA.py
 ===========
 
-Driver code for A^T*A.
+Compute A^T * A for a matrix A.
+
+Usage:
+     dumbo start AtA.py -hadoop $HADOOP_INSTALL \
+     -mat [name of matrix file] \
+     -reduce_schedule [optional: number of reducers to use in each stage] \
+     -output [optional: name of output file] \
+     -blocksize [optional: block size for compression]
 
 Example usage:
-     dumbo start AtA.py -mat A_matrix -reduce_schedule 1 -hadoop icme-hadoop1
+     dumbo start AtA.py -hadoop $HADOOP_INSTALL \
+     -mat A_800M_10.bseq -output AtA_10x10.bseq \
+     -blocksize 5 -reduce_schedule 40,1
 
-Austin R. Benson (arbenson@stanford.edu)
+
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 """
 
 import os

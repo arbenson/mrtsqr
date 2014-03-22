@@ -95,7 +95,7 @@ class GlobalOptions:
         return self._get_key(key,default,str)
 
     def getintkey(self,key,default=None):
-        return self._get_key(key,default,int)        
+        return self._get_key(key,default,int)
             
     def setkey(self,key,value):
         if self.prog:

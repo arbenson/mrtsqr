@@ -2,16 +2,24 @@
 tssvd.py
 ===========
 
-Driver code for tall-and-skinny SVD.  Computes the singular values.
+Compute the singular values of a tall-and-skinny matrix.
+
+Usage:
+     dumbo start tssvd.py -hadoop $HADOOP_INSTALL \
+     -mat [name of matrix file] \
+     -reduce_schedule [optional: number of reducers to use in each stage] \
+     -output [optional: name of output file] \
+     -blocksize [optional: block size for compression]
+
 
 Example usage:
-     dumbo start tssvd.py -mat A_800M_10.bseq -nummaptasks 30 \
-     -reduce_schedule 20,1 -hadoop icme-hadoop1
+     dumbo start tssvd.py -hadoop $HADOOP_INSTALL \
+     -mat A_800M_10.bseq -output A_singvals \
+     -reduce_schedule 40,1
 
-
-Austin R. Benson (arbenson@stanford.edu)
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013-2014
+Copyright (c) 2012-2014
 """
 
 import mrmc

@@ -1,11 +1,9 @@
-#!/usr/bin/env dumbo
-
 """
-Householder algorithm driver for MapReduce (part 3)
+Householder algorithm for QR (part 3).
 
-Austin R. Benson (arbenson@stanford.edu)
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2012-2014
 """
 
 import mrmc

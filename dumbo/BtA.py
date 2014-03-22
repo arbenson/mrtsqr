@@ -1,23 +1,29 @@
-#!/usr/bin/env dumbo
-
 """
 BtA.py
 ===========
 
 Driver code for computing B^T * A, where both B and A are tall and skinny.
 
+Usage:
+     dumbo start AtA.py -hadoop $HADOOP_INSTALL \
+     -matA [path to matrix A] \
+     -matB [path to matrix B] \
+     -B_id [unique identifier for path of B] \
+     -reduce_schedule [optional: number of reducers to use in each stage] \
+     -output [optional: name of output file] \
+     -blocksize [optional: block size for compression]
+
+The option 'B_id' is a unique identifier for the path of the B matrix that
+does not occur in the path to the A matrix.
+TODO(arbenson): this should be automated
+
 Example usage:
-     dumbo start BtA.py -hadoop $HADOOP_INSTALL -matB B_matrix.mseq \
-     -matA A_matrix.mseq -output BTA_OUT -B_id B_matrix -blocksize 10 \
-     -reduce_schedule 10 -nummaptasks 40
-
-B_id is a unique identifier for the path of the B matrix that does not
-occur in the path to the A matrix.
-
+     dumbo start BtA.py -hadoop $HADOOP_INSTALL -matA A_matrix.mseq \
+     -matB B_matrix.mseq -output BTA_OUT -B_id B_matrix -blocksize 10
 
 Austin R. Benson
 David F. Gleich
-Copyright (c) 2013-2014
+Copyright (c) 2012-2014
 """
 
 import os

@@ -1,11 +1,9 @@
-#!/usr/bin/env dumbo
-
 """
 MapReduce matrix computations.  This contains the basic building blocks.
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2013-2014
 """
 
 import sys
@@ -158,9 +156,9 @@ class SerialTSQR(MatrixHandler):
         if premult_file != None:
             self.parse_premult(premult_file)
 
-    def parse_premult(self, mpath):
+    def parse_premult(self, matpath):
         data = []
-        for row in util.parse_matrix_txt(mpath):
+        for row in util.parse_matrix_txt(matpath):
             data.append(row)
         self.small = numpy.linalg.inv(numpy.mat(data))
     
@@ -252,87 +250,23 @@ class SerialTSQR(MatrixHandler):
             yield key, val
 
 
-
 """
 Tall-and-skinny matrix multiplication
 """
 class TSMatMul(MatrixHandler):
-    def __init__(self, blocksize=3, mpath='m.txt'):
+    def __init__(self, blocksize=3, matpath='m.txt', matpath2=None):
         MatrixHandler.__init__(self)        
         self.blocksize = blocksize
         self.row = None
         self.data = []
         self.keys = []
-        self.parseM(mpath)
+        self.small1 = self.parseM(matpath)
+        if matpath2 != None:
+            self.small2 = self.parseM(matpath2)
 
-    def parseM(self, mpath):
+    def parseM(self, matpath):
         data = []
-        for row in util.parse_matrix_txt(mpath):
-            data.append(row)
-        self.small = numpy.mat(data)
-
-    def compress(self):        
-        # Compute the matmul on the data accumulated so far
-        if self.ncols is None or len(self.data) == 0:
-            return
-
-        self.counters['MatMul compression'] += 1
-
-        t0 = time.time()
-        A = numpy.mat(self.data)
-        out_mat = A * self.small
-        dt = time.time() - t0
-        self.counters['numpy time (millisecs)'] += int(1000 * dt)
-
-        # reset data and add flushed update to local copy
-        self.data = []
-        #for i, row in enumerate(out_mat.getA()):
-        #    yield self.keys[i], struct.pack('d' * len(row), *row)
-
-        for i, row in enumerate(out_mat.getA()):
-            yield self.keys[i], row
-
-        # clear the keys
-        self.keys = []
-    
-    def collect(self, key, value):
-        self.keys.append(key)
-        self.data.append(value)
-        self.nrows += 1
-        
-        # write status updates so Hadoop doesn't complain
-        if self.nrows%50000 == 0:
-            self.counters['rows processed'] += 50000
-
-    def __call__(self, data):
-        for key,value in data:
-            self.collect_data_instance(key, value)
-
-            # if we accumulated enough rows, output some data
-            if len(self.data) >= self.blocksize * self.ncols:
-                for key, val in self.compress():
-                    yield key, val
-                    
-        # output data the end of the data
-        for key, val in self.compress():
-            yield key, val
-
-"""
-Tall-and-skinny matrix multiplication
-"""
-class TSMatMul2(MatrixHandler):
-    def __init__(self, blocksize=3, mpath='m.txt', mpath2='m2.txt'):
-        MatrixHandler.__init__(self)        
-        self.blocksize = blocksize
-        self.row = None
-        self.data = []
-        self.keys = []
-        self.small1 = self.parseM(mpath)
-        self.small2 = self.parseM(mpath2)
-
-    def parseM(self, mpath):
-        data = []
-        for row in util.parse_matrix_txt(mpath):
+        for row in util.parse_matrix_txt(matpath):
             data.append(row)
         return numpy.mat(data)
 
@@ -345,14 +279,17 @@ class TSMatMul2(MatrixHandler):
 
         t0 = time.time()
         A = numpy.mat(self.data)
-        out_mat = (A * self.small1) * self.small2
+        out_mat = A * self.small1
+        if self.small2 != None:
+            out_mat *= self.small2
+
         dt = time.time() - t0
         self.counters['numpy time (millisecs)'] += int(1000 * dt)
 
         # reset data and add flushed update to local copy
         self.data = []
         for i, row in enumerate(out_mat.getA()):
-            yield self.keys[i], struct.pack('d' * len(row), *row)
+            yield self.keys[i], row
 
         # clear the keys
         self.keys = []
@@ -384,26 +321,18 @@ class TSMatMul2(MatrixHandler):
 ARInv is just a thin wrapper around TSMatMul
 """
 class ARInv(TSMatMul):
-    def __init__(self, blocksize=3, rpath='m.txt'):
-        TSMatMul.__init__(self, blocksize=blocksize, mpath=rpath)
+    def __init__(self, blocksize=3, rpath='m.txt', rpath2=None):
+        TSMatMul.__init__(self, blocksize=blocksize, matpath=rpath, matpath2=rpath2)
         # Computing ARInv is the same as TSMatMul, except that our multiplier is
         # the inverse of the parsed matrix.
         self.small = numpy.linalg.pinv(self.small)
-
-"""
-ARInv is just a thin wrapper around TSMatMul
-"""
-class ARInv2(TSMatMul2):
-    def __init__(self, blocksize=3, rpath='m.txt', rpath2='m2.txt'):
-        TSMatMul2.__init__(self, blocksize=blocksize, mpath=rpath, mpath2=rpath2)
-        # Computing ARInv is the same as TSMatMul, except that our multiplier is
-        # the inverse of the parsed matrix.
-        self.small1 = numpy.linalg.inv(self.small1)
-        self.small2 = numpy.linalg.inv(self.small2)
+        if rpath2 != None:
+            self.small2 = numpy.linalg.inv(self.small2)
 
 
 class Cholesky(dumbo.backends.common.MapRedBase):
     def __init__(self, ncols=10):
+        # TODO(arbenson): ncols should be automatically detected
         self.ncols = ncols
         self.data = [numpy.zeros((1, ncols)).tolist()[0] for x in range(ncols)]
     
@@ -433,9 +362,9 @@ class AtA(MatrixHandler):
             self.parse_premult(premult_file)
         self.premult_file = premult_file
 
-    def parse_premult(self, mpath):
+    def parse_premult(self, matpath):
         data = []
-        for row in util.parse_matrix_txt(mpath):
+        for row in util.parse_matrix_txt(matpath):
             data.append(row)
         self.small = numpy.linalg.inv(numpy.mat(data))
     

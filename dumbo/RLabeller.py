@@ -1,11 +1,11 @@
-#!/usr/bin/env dumbo
-
 """
-R labeller for recursive Direct TSQR
+R labeller for recursive Direct TSQR.
 
-Austin R. Benson (arbenson@stanford.edu)
+Use the script run_rec_dirtsqr.py to run recursive Direct TSQR.
+
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2012-2014
 """
 
 import mrmc
