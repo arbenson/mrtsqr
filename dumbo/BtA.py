@@ -4,10 +4,10 @@
 BtA.py
 ===========
 
-Driver code for B^T*A.
+Driver code for computing B^T * A, where both B and A are tall and skinny.
 
 Example usage:
-     dumbo start BtA.py -hadoop icme-hadoop1 -matB B_matrix.mseq \
+     dumbo start BtA.py -hadoop $HADOOP_INSTALL -matB B_matrix.mseq \
      -matA A_matrix.mseq -output BTA_OUT -B_id B_matrix -blocksize 10 \
      -reduce_schedule 10 -nummaptasks 40
 
@@ -15,9 +15,9 @@ B_id is a unique identifier for the path of the B matrix that does not
 occur in the path to the A matrix.
 
 
-Austin R. Benson (arbenson@stanford.edu)
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2013-2014
 """
 
 import os
