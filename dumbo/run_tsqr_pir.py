@@ -10,9 +10,9 @@ See options:
 
 Example usage:
 
-Austin R. Benson     arbenson@stanford.edu
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2012-2014
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 """
@@ -72,9 +72,7 @@ except:
 
 nummaptasks = int(options.nummaptasks)
 blocksize = options.blocksize
-
 hadoop = options.hadoop
-
 use_cholesky = int(options.use_cholesky)
 
 # Sample step
@@ -110,11 +108,11 @@ cm.copy_from_hdfs(out2, pir_R2)
 cm.parse_seq_file(pir_R2)
 
 out3 = out + '_pir_Q'
-cm.run_dumbo('ARInv2.py', hadoop, ['-mat ' + in1,
-                                   '-blocksize ' + str(blocksize),
-                                   '-output ' + out3,
-                                   '-matpath ' + pir_R1 + '.out',
-                                   '-matpath2 ' + pir_R2 + '.out'])
+cm.run_dumbo('ARInv.py', hadoop, ['-mat ' + in1,
+                                  '-blocksize ' + str(blocksize),
+                                  '-output ' + out3,
+                                  '-matpath ' + pir_R1 + '.out',
+                                  '-matpath2 ' + pir_R2 + '.out'])
 
 try:
   f = open(times_out, 'a')

@@ -25,18 +25,16 @@ import dumbo
 import dumbo.backends.common
 from dumbo import opt
 
-"""
-DirTSQRMap1
---------------
-
-Input: <key, value> pairs representing <row id, row> in the matrix A
-
-Output:
-  1. R matrix: <mapper id, row>
-  2. Q matrix: <mapper id, row + [row_id]>
-"""
 @opt("getpath", "yes")
 class DirTSQRMap1(mrmc.MatrixHandler):
+    """
+    Input: <key, value> pairs representing <row id, row> in the matrix A
+
+    Output:
+    1. R matrix: <mapper id, row>
+    2. Q matrix: <mapper id, row + [row_id]>
+    """
+
     def __init__(self):
         mrmc.MatrixHandler.__init__(self)
         self.keys = []
@@ -81,25 +79,22 @@ class DirTSQRMap1(mrmc.MatrixHandler):
             yield key, val
 
 
-"""
-DirTSQRRed2
-------------
-
-Takes all of the intermediate Rs
-
-Computes [R_1, ..., R_n] = Q2R_{final}
-
-Output:
-1. R_final: R in A = QR with key-value pairs <i, row>
-2. Q2: <mapper_id, row>
-
-where Q2 is a list of key value pairs.
-
-Each key corresponds to a mapperid from stage 1 and that keys value is the
-Q2 matrix corresponding to that mapper_id
-"""
 @opt("getpath", "yes")
 class DirTSQRRed2(dumbo.backends.common.MapRedBase):
+    """
+    Takes all of the intermediate Rs
+
+    Computes [R_1, ..., R_n] = Q2R_{final}
+
+    Output:
+    1. R_final: R in A = QR with key-value pairs <i, row>
+    2. Q2: <mapper_id, row>
+    
+    where Q2 is a list of key value pairs.
+    
+    Each key corresponds to a mapperid from stage 1 and that keys value is the
+    Q2 matrix corresponding to that mapper_id
+    """
     def __init__(self, compute_svd=False):
         self.R_data = {}
         self.key_order = []
@@ -162,16 +157,13 @@ class DirTSQRRed2(dumbo.backends.common.MapRedBase):
             yield key, val
 
 
-"""
-DirTSQRMap3
-------------
-
-input: Q1 as <mapper_id, [row] + [row_id]>
-input: Q2 comes attached as a text file, which is then parsed on the fly
-
-output: Q as <row_id, row>
-"""
 class DirTSQRMap3(dumbo.backends.common.MapRedBase):
+    """
+    input: Q1 as <mapper_id, [row] + [row_id]>
+    input: Q2 comes attached as a text file, which is then parsed on the fly
+    
+    output: Q as <row_id, row>
+    """
     def __init__(self,ncols,q2path='q2.txt',upath=None):
         # TODO implement this
         self.Q1_data = {}
@@ -243,6 +235,11 @@ class DirTSQRMap3(dumbo.backends.common.MapRedBase):
         for key, val in self.close():
             yield key, val
 
+
+"""
+The classes RLabeller, QGrouperMap, QGrouperReduce, and DirTSQRRed3 are
+used for recursive Direct TSQR.
+"""
 class RLabeller(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.data = []
@@ -262,7 +259,7 @@ class RLabeller(dumbo.backends.common.MapRedBase):
         for key, val in self.close():
             yield key, val
 
-class QGrouper(dumbo.backends.common.MapRedBase):
+class QGrouperMap(dumbo.backends.common.MapRedBase):
     def __init__(self):
         self.data = []
 
@@ -279,7 +276,7 @@ class QGrouper(dumbo.backends.common.MapRedBase):
         for key, val in self.close():
             yield key, val
 
-class QGrouper2(dumbo.backends.common.MapRedBase):
+class QGrouperReduce(dumbo.backends.common.MapRedBase):
     def __init__(self, ncols):
         self.ncols = ncols
         self.data = {}
@@ -309,16 +306,6 @@ class QGrouper2(dumbo.backends.common.MapRedBase):
         for key, val in self.close():
             yield key, val
 
-
-"""
-DirTSQRMap3
-------------
-
-input: Q1 as <mapper_id, [row] + [row_id]>
-input: Q2 comes attached as a text file, which is then parsed on the fly
-
-output: Q as <row_id, row>
-"""
 class DirTSQRRed3(dumbo.backends.common.MapRedBase):
     def __init__(self, ncols):
         self.ncols = ncols

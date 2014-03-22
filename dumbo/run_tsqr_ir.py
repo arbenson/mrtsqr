@@ -12,9 +12,9 @@ Example usage:
      --hadoop=icme-hadoop1 --output=IR_TESTING --times_output=ir_times
 
 
-Austin R. Benson     arbenson@stanford.edu
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2013
+Copyright (c) 2012-2014
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 """
@@ -73,11 +73,8 @@ except:
 
 nummaptasks = int(options.nummaptasks)
 blocksize = options.blocksize
-
 hadoop = options.hadoop
-
 use_cholesky = int(options.use_cholesky)
-
 
 def tsqr_arinv_iter(in1, out):
     out1 = out + '_qrr'

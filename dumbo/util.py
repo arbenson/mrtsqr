@@ -2,7 +2,11 @@
 util.py
 =======
 
-Utility routines for the tsqr and regression code.
+Utility routines for tsqr and related codes.
+
+Austin R. Benson
+David F. Gleich
+Copyright (c) 2012-2014
 """
 
 import os
@@ -115,10 +119,8 @@ class GlobalOptions:
             self.prog.addopt('param',str(key)+'='+str(value))
         
 
-"""
-CommandManager is our cheapy build system.
-"""
 class CommandManager:
+    """ CommandManager is our cheapy build system. """
     def __init__(self, verbose=True):
         self.verbose = verbose
         self.times = []
