@@ -26,7 +26,7 @@ import os
 
 import subprocess
 
-import hadoopy
+#import hadoopy
 
 def get_args(argv):
     args = {}
@@ -133,8 +133,8 @@ if __name__=='__main__':
         print
         print "End Hadoop Command"
         
-        if hadoopy.exists(curoutput):
-            print "Removing %s"%(curoutput)
-            hadoopy.rm(curoutput)
+        #if hadoopy.exists(curoutput):
+        #    print "Removing %s"%(curoutput)
+        #    hadoopy.rm(curoutput)
 
         subprocess.check_call(' '.join(cmd),shell=True)
