@@ -1,0 +1,3 @@
+This is experimental code for running Householder QR on MapReduce to compute R.
+The algorithm is very slow and is used for performance comparisons only.  Please
+use tsqr.py to compute R.
