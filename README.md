@@ -1,70 +1,81 @@
-MapReduce Matrix Computations
-======
+MapReduce Matrix Computations (MRMC)
+--------
+Austin R. Benson, David F. Gleich, Paul G. Constantine, and James Demmel
 
-### David F. Gleich, Paul G. Constantine, Austin R. Benson, James Demmel
-
-The QR factorization is a standard matrix factorization used to solve
-many problems.  Probably the most famous is linear regression:
+This software provides a number of matrix computations for Hadoop Mapreduce,
+using Python Hadoop streaming.  Among the computations, we focus on providing
+a variety of methods for computing the QR factorization and the SVD.
+The QR factorization is a standard matrix factorization used to solve many
+problems.  Probably the most famous is linear regression:
 
     minimize || Ax - b ||,
 
 where _A_ is an _m-by-n_ matrix, and _b_ is an _m-by-1_ vector.
 When the number of rows of the matrix _A_ is much larger than
-the number of columns, then _A_ is called a _tall-and-skinny_
+the number of columns (_m_ >> _n_), then _A_ is called a _tall-and-skinny_
 matrix because of its shape.
 
-The MapReduce codes implement several routines for computing the QR
-factorization of a tall-and-skinny matrix.  We offer:
+The SVD is a small extension of QR when the matrix _A_ is tall-and-skinny.  If
 
-* Cholesky QR
-* Direct TSQR (compute Q and R stably)
-* Indirect TSQR (compute only R or also compute Q = AR^{-1})
+     A = QR
 
-We also implement Householder QR for performance comparisons only.  The other
-algorithms are superior.  The underlying algorithm for Direct and Indirect
-TSQR is due to Demmel et al. .  We also provide a few basic computations:
+and
 
-* B^T*A for B and A tall-and-skinny
-* A*B for A tall-and-skinny and B small and square
+     R = USV',
 
-Most codes are written in Python and use the NumPy library
-for the numerical routines.  This introduces a mild-ineffiency
-into the code.  Some C++ implementations are also provided in the 
-`mrtsqr/cxx` directory.
+then the SVD of A is
 
-The most recent work can be found in the preprint by Benson, Gleich, and Demmel at
+     A = (QU)SV'.
 
-* Direct QR factorizations for tall-and-skinny matrices in MapReduce architectures [[pdf](http://arxiv.org/abs/1301.1071)]
+Since _R_ is _n-by-n_, computing its SVD is cheap (O(n^3) operations).
+The QR implementations we offer are:
 
-The original paper by Constantine and Gleich is available at:
+* Compute just the _R_ factor, using TSQR or Cholesky QR
+* Indirect TSQR (compute _R_ followed by _Q = AR^{-1}_).  This is an unstable computation of _Q_.
+* Indirect TSQR + (pseudo-)Iterative Refinement.
+* Direct TSQR.  This is a stable computation of _Q_.
+* Householder QR.  This is for performance results only--the other algorithms are superior in MapReduce.
 
-* Tall and skinny QR factorizations in MapReduce architectures [[pdf](http://www.cs.purdue.edu/homes/dgleich/publications/Constantine%202011%20-%20TSQR.pdf)]
+All of the analogous SVD computations are also available, with no additional cost in running time.
+We also provide the following computations that may be useful:
 
+* _B^T * A_ for tall-and-skinny matrices _A_ and _B_.
+* _A^T * A_ for a tall-and-skinny matrix _A_.
+* _A * B_ for tall-and-skinny _A_ and small _B_.
 
+These codes are written using Python Hadoop streaming.  We use NumPy for local matrix computations
+and Dumbo for managing the streaming.
+Some C++ implementations are also provided in the `mrtsqr/cxx` directory.
 
-Synopsis
+The most recent work can be found in the following paper by Benson, Gleich, and Demmel:
+
+* [Direct QR factorizations for tall-and-skinny matrices in MapReduce architectures](http://dx.doi.org/10.1109/BigData.2013.6691583)
+
+The original paper by Constantine and Gleich on MapReduce TSQR is:
+
+* [Tall and skinny QR factorizations in MapReduce architectures](http://www.cs.purdue.edu/homes/dgleich/publications/Constantine%202011%20-%20TSQR.pdf)
+
+The original work on the TSQR by Demmel et al. is:
+
+* [Communication-optimal Parallel and Sequential QR and LU Factorizations](http://dx.doi.org/10.1137/080731992)
+
+Setup
 --------
+This code requires the following software:
 
-Here, we detail the minimum possible steps required to get things
-working.
+* Hadoop
+* Python+NumPy
+* [Dumbo](https://github.com/klbostee/dumbo/) (+ [Feathers](https://github.com/klbostee/feathers) for Direct TSQR)
 
-### Setup
+R and singular values examples
+--------
+Here, we give a brief overview of the code and a small working example.
+For this example, we need to set the environment variable HADOOP_INSTALL to point
+to Hadoop on your system.  For example:
 
-Ideally, there would be no setup.  However, to make things easier
-at other stages, there are a few things you must do.
+     HADOOP_INSTALL=/usr/lib/hadoop
 
-### Assumptions
-
-* dumbo is installed and working
-* numpy is installed and working
-* hadoop is installed and working
-* feathers is installed and working for Direct TSQR
-
-### Example 1: TSQR and TS-SVD
-
-    # Load all the paths.  You should update this for your setup.
-    # This example only needs HADOOP_INSTALL set
-    source setup_env.sh
+Our first example shows how to compute the R factor and singular values of a small matrix:
     
     # Move a matrix into HDFS, properly formatted for our tools
     hadoop fs -mkdir tsqr
@@ -74,13 +85,13 @@ at other stages, there are a few things you must do.
     -input tsqr/verytiny.tmat -output tsqr/verytiny.mseq
 
     # Look at the matrix in HFDS
-    dumbo cat tsqr/verytiny.mseq/part-* -hadoop $HADOOP_INSTALL
+    dumbo cat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
     
     # Run TSQR
     dumbo start dumbo/tsqr.py -mat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
 
     # Look at R in HDFS
-    dumbo cat tsqr/verytiny-qrr.mseq/part-* -hadoop $HADOOP_INSTALL
+    dumbo cat tsqr/verytiny-qrr.mseq -hadoop $HADOOP_INSTALL
 
     # Run TSQR with a different reduce schedule and output name
     dumbo start dumbo/tsqr.py -mat tsqr/verytiny.mseq -reduce_schedule 2,1 \
@@ -88,16 +99,17 @@ at other stages, there are a few things you must do.
      -output verytiny-qrr-double-reduce.mseq
 
     # Look at R (should be the same, up to sign)
-    dumbo cat verytiny-qrr-double-reduce.mseq/part-* -hadoop $HADOOP_INSTALL
+    dumbo cat verytiny-qrr-double-reduce.mseq -hadoop $HADOOP_INSTALL
 
     # Run TS-SVD to compute the singular values
     dumbo start dumbo/tssvd.py -mat tsqr/verytiny.mseq -hadoop $HADOOP_INSTALL
 
     # Look at the singular values
-    dumbo cat tsqr/verytiny-svd.mseq/part-* -hadoop $HADOOP_INSTALL
+    dumbo cat tsqr/verytiny-svd.mseq -hadoop $HADOOP_INSTALL
 
-### Example 2: Stable Direct TSQR and SVD
-    # Feathers needs to be installed and the jar needs to be in the classpath.
+Our second example shows how to stably compute the thin QR and SVD factorization of
+the same small matrix.  For this example, Feathers needs to be installed and feathers.jar
+on the Java classpath.
 
     # Change directories
     cd dumbo
@@ -108,23 +120,17 @@ at other stages, there are a few things you must do.
           --svd=1 \
           --hadoop=$HADOOP_INSTALL \
           --local_output=tsqr-tmp \
-          --output=verytiny_qr
+          --output=verytiny_qr_svd
 
     # Look at the singular values
-    dumbo cat verytiny_qr_2/Sigma/part-* -hadoop $HADOOP_INSTALL
+    dumbo cat verytiny_qr_svd_2/Sigma -hadoop $HADOOP_INSTALL
     
     # Look at R
-    dumbo cat verytiny_qr_2/R_final/part-* -hadoop $HADOOP_INSTALL
+    dumbo cat verytiny_qr_svd_2/R_final -hadoop $HADOOP_INSTALL
 
+    # Look at Q
+    dumbo cat verytiny_qr_svd_3 -hadoop $HADOOP_INSTALL
 
-Overview
---------
-
-* `dumbo/run_dirtsqr.py` - driver code for direct tsqr
-* `dumbo/run_tsqr_ir.py` - driver code for direct tsqr with iterative refinement
-* `dumbo/tsqr.py` - the indirect tsqr function for dumbo
-* `cxx/tsqr.cc` - the tsqr code using C++
-* `cxx/typedbytes.h` - the header file for the C++ typedbytes library
 
 Contact
 --------
