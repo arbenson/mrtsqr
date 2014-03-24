@@ -67,6 +67,11 @@ This code requires the following software:
 * Python+NumPy
 * [Dumbo](https://github.com/klbostee/dumbo/) (+ [Feathers](https://github.com/klbostee/feathers) for Direct TSQR)
 
+Once everything is installed, run the small tests for MRTSQR:
+
+     cd dumbo
+     python run_tests.py all
+
 R and singular values examples
 --------
 Here, we give a brief overview of the code and a small working example.
@@ -122,14 +127,20 @@ on the Java classpath.
           --local_output=tsqr-tmp \
           --output=verytiny_qr_svd
 
-    # Look at the singular values
-    dumbo cat verytiny_qr_svd_2/Sigma -hadoop $HADOOP_INSTALL
-    
     # Look at R
     dumbo cat verytiny_qr_svd_2/R_final -hadoop $HADOOP_INSTALL
 
-    # Look at Q
-    dumbo cat verytiny_qr_svd_3 -hadoop $HADOOP_INSTALL
+    # Look at the singular values
+    dumbo cat verytiny_qr_svd_2/Sigma -hadoop $HADOOP_INSTALL
+    
+The matrix _Q_ is stored in `verytiny_qr_svd_3` on HDFS.  However, we store it in the compressed
+TypedBytes string format (as opposed to TypedBytes list format) for efficiency.  This makes the output
+of cat unreadable but computations using _Q_ faster.  We can make sure that _Q_ is orthogonal:
+
+     dumbo start AtA.py -mat verytiny_qr_svd_3 \
+          -output verytiny_QtQ.mseq -hadoop $HADOOP_INSTALL
+     # Q^T * Q should be close to the identity matrix
+     dumbo cat verytiny_QtQ.mseq -hadoop $HADOOP_INSTALL     
 
 
 Contact
