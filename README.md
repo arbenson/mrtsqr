@@ -1,4 +1,4 @@
-MapReduce Matrix Computations (MRMC)
+MapReduce TSQR (MRTSQR)
 --------
 Austin R. Benson, David F. Gleich, Paul G. Constantine, and James Demmel
 
