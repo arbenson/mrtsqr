@@ -47,7 +47,8 @@ These codes are written using Python Hadoop streaming.  We use NumPy for local m
 and Dumbo for managing the streaming.
 Some C++ implementations are also provided in the `mrtsqr/cxx` directory.
 
-The most recent work can be found in the following paper by Benson, Gleich, and Demmel:
+The most recent work can be found in the following paper by Benson, Gleich, and Demmel.  Please cite 
+the following paper if you use this software:
 
 * [Direct QR factorizations for tall-and-skinny matrices in MapReduce architectures](http://dx.doi.org/10.1109/BigData.2013.6691583)
 
@@ -140,7 +141,42 @@ of cat unreadable but computations using _Q_ faster.  We can make sure that _Q_ 
      dumbo start AtA.py -mat verytiny_qr_svd_3 \
           -output verytiny_QtQ.mseq -hadoop $HADOOP_INSTALL
      # Q^T * Q should be close to the identity matrix
-     dumbo cat verytiny_QtQ.mseq -hadoop $HADOOP_INSTALL     
+     dumbo cat verytiny_QtQ.mseq -hadoop $HADOOP_INSTALL
+
+
+Many QRs
+--------
+In this example, we look at many of the methods provided for computing the QR factorization.
+We will use a slightly larger test matrix for this example.  The following code creates a
+_10M-by-20_ matrix.
+
+     hadoop fs -copyFromLocal data/Simple_10k.txt Simple_10k.txt
+     dumbo start dumbo/GenBigExample.py -mat Simple_10k.txt \
+        -output A_10M_20.bseq -hadoop $HADOOP_INSTALL
+
+Now, we compute the QR factorization of this matrix using several different methods:
+
+     cd dumbo
+     # TSQR + AR^{-1}.
+     python run_tsqr_arinv.py --hadoop=$HADOOP_INSTALL --input=A_10M_20.bseq \
+          --schedule=20,1 --output=ARINV
+     # Cholesky QR + AR^{-1}.  Option use_cholesky specifies number of columns.
+     python run_tsqr_arinv.py --hadoop=$HADOOP_INSTALL --input=A_10M_20.bseq \
+          --schedule=20,1 --output=ARINV_CHOL --use_cholesky=20
+     
+     # Direct TSQR.
+     python run_dirtsqr.py --hadoop=$HADOOP_INSTALL --input=A_10M_20.bseq \
+          --ncols=20 --svd=0 --schedule=20,20,20 --output=DIRTSQR
+     # Recursive Direct TSQR.
+     python run_rec_dirtsqr.py --hadoop=$HADOOP_INSTALL --input=A_10M_20.bseq \
+          --ncols=20 --output=REC_DIRTSQR
+
+     # Indirect TSQR + iterative refinement.
+     python run_tsqr_ir.py --hadoop=$HADOOP_INSTALL --input=A_10M_20.bseq \
+          --schedule=20,1 --output=TSQR_IR
+     # Indirect TSQR + pseudo-iterative refinement.
+     python run_tsqr_ir.py --hadoop=$HADOOP_INSTALL --input=A_10M_20.bseq \
+          --schedule=20,1 --output=TSQR_PIR --use_pseudo=1
 
 
 Contact

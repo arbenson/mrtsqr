@@ -21,7 +21,7 @@ def runner(job):
     mapper = dirtsqr.RLabeller()
     reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper, reducer=reducer,
-                opts=[('numreducetasks', str(40))])
+                opts=[('numreducetasks', '0')])
 
 def starter(prog):
     # set the global opts

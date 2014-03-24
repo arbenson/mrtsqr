@@ -226,7 +226,10 @@ class DirTSQRMap3(dumbo.backends.common.MapRedBase):
             matrix = val[ind +1 +val1_len:]
             keys = pickle.loads(keys)
             num_entries = len(matrix) / 8
-            assert (num_entries % self.ncols == 0)
+            if num_entries % self.ncols != 0:
+				raise mrmc.DataFormatException(
+                'Length of value (%d) did not match number of columns (%d)' % (
+						num_entries, self.ncols))
             mat = struct.unpack('d' * num_entries, matrix)
             mat = numpy.mat(mat)
             mat = numpy.reshape(mat, (num_entries / self.ncols , self.ncols))
@@ -253,7 +256,7 @@ class RLabeller(dumbo.backends.common.MapRedBase):
             for i, row in enumerate(value):
                 new_key = str(key) + '_' + str(i)
                 row = [float(val) for val in row]
-                row = struct.pack('d'*len(row), *row)
+                row = struct.pack('d' * len(row), *row)
                 self.data.append((new_key, row))
         
         for key, val in self.close():

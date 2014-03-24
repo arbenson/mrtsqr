@@ -7,7 +7,7 @@ See options:
 Example usage:
      python run_rec_dirtsqr.py --input=A_800M_10.bseq \
             --ncols=10 --svd=2 --schedule=100,100,100 \
-            --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
+            --hadoop=$HADOOP_INSTALL --local_output=tsqr-tmp \
             --output=DIRTSQR_TESTING
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
@@ -45,13 +45,6 @@ parser.add_option('-s', '--schedule', dest='sched', default='100,100,100',
                        + ' the three jobs')
 parser.add_option('-H', '--hadoop', dest='hadoop', default='',
                   help='name of hadoop for Dumbo')
-parser.add_option('-x', '--svd', type='int', dest='svd', default=0,
-                  help="""0: no SVD computed;
-1: compute the singular values (R = USV^t);
-2: compute the singular vectors as well as QR;
-3: compute the SVD but not the QR factorization
-"""
-)
 parser.add_option('-q', '--quiet', action='store_false', dest='verbose',
                   default=True, help='turn off some statement printing')
 
@@ -80,8 +73,6 @@ ncols = options.ncols
 if ncols == 0:
   cm.error('number of columns not provided, use --ncols')
 
-svd_opt = options.svd
-
 sched = options.sched
 try:
   sched = [int(s) for s in sched.split(',')]
@@ -90,7 +81,8 @@ except:
   cm.error('invalid schedule provided')
 
 hadoop = options.hadoop
-
+if hadoop[0] == '$':
+	hadoop = os.environ[hadoop[1:]]
 
 R_labelled_out = out + '_R_LABELLED'
 out1 = out + '_1'
@@ -112,7 +104,7 @@ cmd += '--ncols=' + str(ncols) + ' '
 cmd += '--schedule=80,80,80 '
 cmd += '--times_output=recursive_times '
 cmd += '--output=' + rec_out + ' '
-cmd += '--hadoop=icme-hadoop1 '
+cmd += '--hadoop=' + hadoop + ' '
 
 cm.exec_cmd(cmd)
 

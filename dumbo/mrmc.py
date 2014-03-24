@@ -345,7 +345,7 @@ class Cholesky(dumbo.backends.common.MapRedBase):
             yield ind, row.tolist()
 
     def __call__(self, data):
-        for key,values in data:
+        for key, values in data:
             for value in values:
                 # TODO(arbenson): handle typedbytes string here
                 self.data[key] += numpy.array(value)

@@ -23,7 +23,7 @@ def runner(job):
     mapper = mrmc.ID_MAPPER
     reducer = dirtsqr.DirTSQRRed3(ncols)
     job.additer(mapper=mapper, reducer=reducer,
-                opts=[('numreducetasks', str(reducetasks))]
+				opts=[('numreducetasks', str(reducetasks))])
 
 def starter(prog):
     # set the global opts
