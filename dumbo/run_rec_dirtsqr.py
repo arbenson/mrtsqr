@@ -1,23 +1,20 @@
-#!/usr/bin/env python
-
 """
-This is a script to run the Direct TSQR algorithm with direct computation
-of the matrix Q.
+This is a script to run the recursive Direct TSQR algorithm.
 
 See options:
-     python run_direct_tsqr.py --help
+     python run_rec_dirtsqr.py --help
 
 Example usage:
-     python run_direct_tsqr.py --input=A_800M_10.bseq \
+     python run_rec_dirtsqr.py --input=A_800M_10.bseq \
             --ncols=10 --svd=2 --schedule=100,100,100 \
             --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
             --output=DIRTSQR_TESTING
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 
-Austin R. Benson     arbenson@stanford.edu
+Austin R. Benson
 David F. Gleich
-Copyright (c) 2012
+Copyright (c) 2012-2014
 """
 
 import os
