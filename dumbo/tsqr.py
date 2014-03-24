@@ -32,15 +32,19 @@ gopts = util.GlobalOptions()
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
     schedule = gopts.getstrkey('reduce_schedule')
-    mpath = gopts.getstrkey('mpath')
-    if mpath == '': mpath = None
+    premultpath = gopts.getstrkey('premultpath')
+    if premultpath == '':
+        premultpath = None
     
     schedule = schedule.split(',')
-    for i,part in enumerate(schedule):
+    for i, part in enumerate(schedule):
         isfinal = (i == len(schedule) - 1)
         nreducers = int(part)
+        # Only pre-multiply the data in the first pass
+        if i > 0:
+            premultpath = None
         mapper = mrmc.SerialTSQR(blocksize=blocksize, isreducer=False,
-                                 isfinal=isfinal)
+                                 isfinal=isfinal, premultpath=premultpath)
         reducer = mrmc.SerialTSQR(blocksize=blocksize, isreducer=True,
                                   isfinal=isfinal)
         job.additer(mapper=mapper,reducer=reducer,
@@ -56,12 +60,12 @@ def starter(prog):
     mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
 
-    mpath = prog.delopt('mpath')
-    if mpath:
-        prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))
-        gopts.getstrkey('mpath', mpath)
+    premultpath = prog.delopt('premultpath')
+    if premultpath:
+        prog.addopt('file', os.path.join(os.path.dirname(__file__), premultpath))
+        gopts.getstrkey('premultpath', premultpath)
     else:
-        gopts.getstrkey('mpath', '')
+        gopts.getstrkey('premultpath', '')
     
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')

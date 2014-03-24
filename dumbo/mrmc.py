@@ -144,7 +144,8 @@ class MatrixHandler(dumbo.backends.common.MapRedBase):
 Serial TSQR
 """
 class SerialTSQR(MatrixHandler):
-    def __init__(self, blocksize=3, isreducer=False, isfinal=False, svd=False, premult_file=None):
+    def __init__(self, blocksize=3, isreducer=False, isfinal=False, svd=False,
+                 premultpath=None):
         MatrixHandler.__init__(self)
         self.blocksize = blocksize
         self.isreducer = isreducer
@@ -153,8 +154,8 @@ class SerialTSQR(MatrixHandler):
         self.isfinal = isfinal
         self.svd = svd
         self.small = None
-        if premult_file != None:
-            self.parse_premult(premult_file)
+        if premultpath != None:
+            self.parse_premult(premultpath)
 
     def parse_premult(self, matpath):
         data = []
@@ -164,15 +165,16 @@ class SerialTSQR(MatrixHandler):
     
     def QR(self):
         if self.small != None and len(self.A_data) > 0:
-            A = numpy.mat(self.A_data)
             if self.isreducer:
                 raise Exception('Reducer has a premultiply matrix!')
-            A = A * self.small
-            print >>sys.stderr, 'Before vstack, A.shape: ' + str(A.shape)
+			# Pre-multiply data by the small matrix
+            A = numpy.mat(self.A_data) * self.small
+			# We need to QR 
             if len(self.data) > 0:
                 A = numpy.vstack((numpy.array(self.data), numpy.array(A)))
         else:
             A = numpy.array(self.data)
+
         if min(A.shape) == 0:
             print >>sys.stderr, 'A has 0 shape'
             return []
@@ -180,7 +182,6 @@ class SerialTSQR(MatrixHandler):
     
     def compress(self):
         # Compute a QR factorization on the data accumulated so far.
-
         t0 = time.time()
         R = self.QR()
         dt = time.time() - t0
