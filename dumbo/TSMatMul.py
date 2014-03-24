@@ -30,9 +30,9 @@ gopts = util.GlobalOptions()
 
 def runner(job):
     blocksize = gopts.getintkey('blocksize')
-    mpath = gopts.getstrkey('mpath')
+    matpath = gopts.getstrkey('matpath')
 
-    mapper = mrmc.TSMatMul(blocksize=blocksize, mpath=mpath)
+    mapper = mrmc.TSMatMul(blocksize=blocksize, matpath=matpath)
     reducer = mrmc.ID_REDUCER
     job.additer(mapper=mapper, reducer=reducer, opts=[('numreducetasks',str(0))])
 
@@ -42,12 +42,12 @@ def starter(prog):
     mat = mrmc.starter_helper(prog)
     if not mat: return "'mat' not specified"
     
-    mpath = prog.delopt('mpath')
-    if not mpath:
-        return "'mpath' not specified"
-    prog.addopt('file', os.path.join(os.path.dirname(__file__), mpath))
+    matpath = prog.delopt('matpath')
+    if not matpath:
+        return "'matpath' not specified"
+    prog.addopt('file', os.path.join(os.path.dirname(__file__), matpath))
 
-    gopts.getstrkey('mpath', mpath)
+    gopts.getstrkey('matpath', matpath)
 
     matname,matext = os.path.splitext(mat)
     output = prog.getopt('output')

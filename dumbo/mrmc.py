@@ -3,7 +3,7 @@ MapReduce matrix computations.  This contains the basic building blocks.
 
 Austin R. Benson (arbenson@stanford.edu)
 David F. Gleich
-Copyright (c) 2013-2014
+Copyright (c) 2012-2014
 """
 
 import sys
@@ -260,7 +260,8 @@ class TSMatMul(MatrixHandler):
         self.row = None
         self.data = []
         self.keys = []
-        self.small1 = self.parseM(matpath)
+        self.small = self.parseM(matpath)
+        self.small2 = None
         if matpath2 != None:
             self.small2 = self.parseM(matpath2)
 
@@ -279,7 +280,7 @@ class TSMatMul(MatrixHandler):
 
         t0 = time.time()
         A = numpy.mat(self.data)
-        out_mat = A * self.small1
+        out_mat = A * self.small
         if self.small2 != None:
             out_mat *= self.small2
 
@@ -321,12 +322,12 @@ class TSMatMul(MatrixHandler):
 ARInv is just a thin wrapper around TSMatMul
 """
 class ARInv(TSMatMul):
-    def __init__(self, blocksize=3, rpath='m.txt', rpath2=None):
-        TSMatMul.__init__(self, blocksize=blocksize, matpath=rpath, matpath2=rpath2)
+    def __init__(self, blocksize=3, matpath='m.txt', matpath2=None):
+        TSMatMul.__init__(self, blocksize=blocksize, matpath=matpath, matpath2=matpath2)
         # Computing ARInv is the same as TSMatMul, except that our multiplier is
         # the inverse of the parsed matrix.
         self.small = numpy.linalg.pinv(self.small)
-        if rpath2 != None:
+        if matpath2 != None:
             self.small2 = numpy.linalg.inv(self.small2)
 
 

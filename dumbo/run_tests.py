@@ -135,7 +135,7 @@ def TSMatMul_test():
 
   cm.run_dumbo('TSMatMul.py', 'icme-hadoop1', ['-mat ' + ts_mat_out_mseq,
                                                '-output ' + result_out,
-                                               '-mpath ' + small_mat_out,
+                                               '-matpath ' + small_mat_out,
                                                '-nummaptasks 1'])
 
   # we should only have one output file
