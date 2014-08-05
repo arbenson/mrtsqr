@@ -1,4 +1,13 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
 ARInv.py
 ===========
 
@@ -20,10 +29,6 @@ This is used in, for example, the pseudo-IR code.
 Example usage:
      dumbo start ARInv.py -hadoop $HADOOP_INSTALL \
      -mat A_800M_10.bseq -matpath R.txt
-
-Austin R. Benson
-David F. Gleich
-Copyright (c) 2012-2014
 """
 
 import mrmc

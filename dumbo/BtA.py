@@ -1,4 +1,13 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
 BtA.py
 ===========
 
@@ -20,10 +29,6 @@ TODO(arbenson): this should be automated
 Example usage:
      dumbo start BtA.py -hadoop $HADOOP_INSTALL -matA A_matrix.mseq \
      -matB B_matrix.mseq -output BTA_OUT -B_id B_matrix -blocksize 10
-
-Austin R. Benson
-David F. Gleich
-Copyright (c) 2012-2014
 """
 
 import os

@@ -183,3 +183,9 @@ Contact
 --------
 
 For questions, suggestions, bug reports, and contributions, please email Austin Benson: arbenson AT stanford DOT edu.
+
+
+License
+--------
+This software is released under the BSD 2-Clause license.  Please see the LICENSE file.
+

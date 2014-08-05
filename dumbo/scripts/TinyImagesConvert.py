@@ -1,13 +1,18 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
 TinyImagesConvert.py
 ===========
 
 Script for converting the tiny images binary file to a
 sequence of key-value pairs in HDFS.
-
-Austin R. Benson
-David F. Gleich
-Copyright (c) 2012-2014
 """
 
 import sys

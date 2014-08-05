@@ -1,4 +1,11 @@
-#!/usr/bin/env python
+"""
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
 
 """
 This is a script to run the C++ implementation of the Direct TSQR algorithm
@@ -13,10 +20,6 @@ Example usage:
             --local_output=tsqr-tmp --output=DIRTSQR_TESTING
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
-
-Austin R. Benson     arbenson@stanford.edu
-David F. Gleich
-Copyright (c) 2012
 """
 
 import os

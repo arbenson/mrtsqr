@@ -1,4 +1,13 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
 This script is used to form the eigen decomposition needed for the DMD data.
 
 See options:
@@ -13,10 +22,6 @@ A^{(n-1)} = U*Sigma*V^t
 Let S_tilde = S*V*Sigma^{-1} and S_tilde = Y*Lambda (eigenvalue decomposition).
 Then the outputs are two n by n matrices, Re(Y) and Im(Y), i.e. the matrices
 consisting of the real pats and imaginary parts of the elements of Y.
-
-Copyright (c) 2012-2014
-Austin R. Benson
-David F. Gleich
 """
 
 from optparse import OptionParser

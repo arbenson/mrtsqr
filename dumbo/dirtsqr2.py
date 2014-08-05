@@ -1,11 +1,16 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
 Direct TSQR algorithm (part 2).
 
 Use the script run_dirtsqr.py to run Direct TSQR.
-
-Austin R. Benson (arbenson@stanford.edu)
-David F. Gleich
-Copyright (c) 2012-2014
 """
 
 import mrmc

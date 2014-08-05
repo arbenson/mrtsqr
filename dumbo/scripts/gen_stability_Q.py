@@ -1,23 +1,16 @@
+"""
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
 import util
 cm = util.CommandManager()
 
-for i, scale in enumerate([1,
-                           10,
-                           100,
-                           1000,
-                           10000,
-                           100000,
-                           1000000,
-                           10000000,
-                           100000000,
-                           1000000000,
-                           10000000000,
-                           100000000000,
-                           1000000000000,
-                           10000000000000,
-                           100000000000000,
-                           1000000000000000,
-                           10000000000000000]):
+for i, scale in enumerate([10 ** i for i in xrange(17)])
   cmd = 'python run_tsqr_ir.py '
   cmd += '--input=Stability_test_%d.mseq ' % i
   cmd += '--output=Stability_caqr_%d ' % i

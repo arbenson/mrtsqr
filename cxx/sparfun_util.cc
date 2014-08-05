@@ -1,13 +1,15 @@
 /**
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+*/
+
+/**
  * @file sf_util.cc
  * Sparse matrix utility routines
- */
-
-/*
- * David F. Gleich
- * Copyright, 2008-2010
- * Developed while working at Microsoft Corporation, Stanford University,
- * the University of British Columbia, and Sandia National Labs.
  */
 
 /** History
@@ -16,11 +18,6 @@
 /**
  * @file sf_util.cc
  * Sparse matrix utility routines
- */
-
-/*
- * David F. Gleich
- * Copyright, 2008-2010
  */
 
 /** History

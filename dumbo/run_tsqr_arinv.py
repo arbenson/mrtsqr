@@ -1,4 +1,12 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+"""
 This is a script to run the TSQR with AR^{-1} to compute Q.
 
 See options:
@@ -7,11 +15,6 @@ See options:
 Example usage:
      python run_tsqr_ir.py --input=A_600M_25.bseq --blocksize=5 \
      --hadoop=icme-hadoop1 --output=ARINV
-
-
-Austin R. Benson
-David F. Gleich
-Copyright (c) 2012-2014
 
 This script is designed to run on ICME's MapReduce cluster, icme-hadoop1.
 """

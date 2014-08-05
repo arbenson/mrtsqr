@@ -1,4 +1,13 @@
 """
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
 This is a script to run the Direct TSQR algorithm with direct computation
 of the matrix Q.  This script can also be used for direct computation
 of the left singular vectors (along with the singular values and right
@@ -12,10 +21,6 @@ Example usage:
             --ncols=10 --svd=2 --schedule=100,100,100 \
             --hadoop=icme-hadoop1 --local_output=tsqr-tmp \
             --output=DIRTSQR_TESTING
-
-Austin R. Benson
-David F. Gleich
-Copyright (c) 2012-2014
 """
 
 import os

@@ -1,6 +1,11 @@
-// Implement TSQR in C++ using atlas and hadoop streaming with typedbytes.
-// David F. Gleich
-// Austin R. Benson
+/**
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
+
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+*/
 
 #include <stdio.h>
 #include <stdlib.h>

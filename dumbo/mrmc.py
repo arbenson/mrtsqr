@@ -1,9 +1,14 @@
 """
-MapReduce matrix computations.  This contains the basic building blocks.
+   Copyright (c) 2012-2014, Austin Benson and David Gleich
+   All rights reserved.
 
-Austin R. Benson (arbenson@stanford.edu)
-David F. Gleich
-Copyright (c) 2012-2014
+   This file is part of MRTSQR and is under the BSD 2-Clause License, 
+   which can be found in the LICENSE file in the root directory, or at 
+   http://opensource.org/licenses/BSD-2-Clause
+"""
+
+"""
+MapReduce matrix computations.  This contains the basic building blocks.
 """
 
 import sys
