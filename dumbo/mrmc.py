@@ -455,7 +455,7 @@ class BtAReducer(MatrixHandler):
 
     def compress(self):
         # Compute BtA on the data accumulated so far
-        if self.ncols is None or len(self.dataB) != len(self.dataA):
+        if self.ncols == None or len(self.dataB) != len(self.dataA) or len(self.dataB) == 0:
             return
 
         t0 = time.time()
